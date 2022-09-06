@@ -1,0 +1,7 @@
+A 'well defined' program is a program written so that it is not possible for undefined behaviour to occur.
+
+Rust aims to provide a systems programming language that is safe from undefined behaviour.
+This makes it much easier to write concurrent code that is correct.
+
+Rust permits 'unsafe code', for one one needs to use a raw pointer.
+
