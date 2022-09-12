@@ -1,0 +1,18 @@
+
+LINK: https://stackoverflow.com/questions/25877285/how-to-disable-unused-code-warnings-in-rust
+
+You can either:
+
+Add an allow attribute on a struct, module, function, etc.:
+	#[allow(dead_code)]
+	struct SemanticDirection;
+
+Add a crate-level allow attribute; notice the !:
+	#![allow(dead_code)]
+
+Pass it to rustc:
+	rustc -A dead_code main.rs
+
+Pass it using cargo via the RUSTFLAGS environment variable:
+	RUSTFLAGS="$RUSTFLAGS -A dead_code" cargo build
+
