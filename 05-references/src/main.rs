@@ -67,36 +67,44 @@ fn factorial(n: usize) -> usize {
 //  With the exception of the '.' operator <(and the comparison operators?)>, we must use the borrow / dereference operators explicitly, (unlike C++) conversion to/from references does not happen implicitly.
 
 
-//  Iterating over a shared reference to a <container> produces a shared reference to each element.
-fn show_table(table: &Table) {
-    for (artist, works) in table {
-        print!("works by {}: ", artist);
-        for work in works {
-            print!("'{}', ", work);
+//  C++ vs Rust References:
+//      C++ converts implicitly between references/lvalues, Rust only converts implicitly for the '.' operator <(and comparison operators?)>
+//      C++ references cannot be re-assigned, Rust references can
+//      <(Only the C++ compiler can create references to references)>, Rust allows references to references
+
+
+fn example_table() 
+{
+    //  Iterating over a shared reference to a <container> produces a shared reference to each element.
+    fn show_table(table: &Table) {
+        for (artist, works) in table {
+            print!("works by {}: ", artist);
+            for work in works {
+                print!("'{}', ", work);
+            }
+            println!();
         }
-        println!();
     }
-}
-//  Iterating over a mutable reference to a <container> produces a mutable reference to each element.
-fn sort_table_works(table: &mut Table) {
-    for (_artist, works) in table {
-        works.sort();
+    //  Iterating over a mutable reference to a <container> produces a mutable reference to each element.
+    fn sort_table_works(table: &mut Table) {
+        for (_artist, works) in table {
+            works.sort();
+        }
     }
-}
-fn make_table() -> Table {
-    let mut table = Table::new();
-    table.insert( "Gesualdo".to_string(),
-        vec![ "many madrigals".to_string(), "Tenebrae Responsoria".to_string() ]
-    );
-    table.insert( "Caravaggio".to_string(),
-        vec![ "The Musicians".to_string(), "The Calling of St. Matthew".to_string() ]
-    );
-    table.insert( "Cellini".to_string(),
-        vec![ "Perseus with the head of Medusa".to_string(), "a salt cellar".to_string() ]
-    );
-    table
-}
-fn example_table() {
+    fn make_table() -> Table {
+        let mut table = Table::new();
+        table.insert( "Gesualdo".to_string(),
+            vec![ "many madrigals".to_string(), "Tenebrae Responsoria".to_string() ]
+        );
+        table.insert( "Caravaggio".to_string(),
+            vec![ "The Musicians".to_string(), "The Calling of St. Matthew".to_string() ]
+        );
+        table.insert( "Cellini".to_string(),
+            vec![ "Perseus with the head of Medusa".to_string(), "a salt cellar".to_string() ]
+        );
+        table
+    }
+
     let mut table = make_table();
     show_table(&table);
     sort_table_works(&mut table);
@@ -133,7 +141,8 @@ fn example_references_to_references() {
 
 //  The comparison operators see through any number of references, so long as both operands have the same type
 //  <(That is: comparing references of the same type compares their values)>
-fn example_comparing_references() {
+fn example_comparing_references() 
+{
     let x = 10;
     let y = 10;
     let rx = &x;
@@ -153,7 +162,8 @@ fn example_comparing_references() {
 //  If assigned to a reference variable, this anonymous variable lasts as long as the variable it is assigned to
 //  Otherwise, the anonymous variable lives to the end of the enclosing statement
 //  These references can be used safely, as Rust does not allow dangling references
-fn example_borrow_reference_anonymous_value() {
+fn example_borrow_reference_anonymous_value() 
+{
     let r = &factorial(6);
     assert_eq!(r + &1009, 1729);
     println!("example_borrow_reference_anonymous_value");
@@ -166,7 +176,8 @@ fn example_borrow_reference_anonymous_value() {
 
 
 //  Each reference is assigned a lifetime - the stretch of program for which it is safe to use. Rust will ensure we do not use a reference outside its lifetime.
-fn example_reference_safety_lifetimes() {
+fn example_reference_safety_lifetimes() 
+{
     // invalid: 'x' does not live long enough to be used
     //let r; { let x = 1; r = &x; }
     //assert_eq!(*r, 1);    
@@ -194,7 +205,8 @@ fn example_reference_safety_lifetimes() {
 //  Where 'a is the lifetime parameter of p
 //  These functions <will/can> not <stash> the reference argument anywhere that will outlive the function call
 
-fn example_reference_safety_receiving_parameters() {
+fn example_reference_safety_receiving_parameters() 
+{
     static mut STASH: &i32 = &128;
 
     //  Since we are assigning our parameter to a static variable, we must specify 'static as the parameter's lifetime
@@ -214,11 +226,12 @@ fn example_reference_safety_receiving_parameters() {
     assign_to_STASH(&12);
     unsafe { println!("STASH=({})", STASH); }
 
-    println!("example_reference_safety_receiving_parameters");
+    println!("example_reference_safety_receiving_parameters, DONE");
 }
 
 
-fn example_reference_safety_passing_parameters() {
+fn example_reference_safety_passing_parameters() 
+{
     //  'p' will not be saved anywhere that outlives the function call (see above)
     fn recieve_nonstatic<'a>(p: &'a i32) { }
 
@@ -231,7 +244,7 @@ fn example_reference_safety_passing_parameters() {
     //  error, borrowed value does not live long enough
     //receive_static(&x);
 
-    println!("example_reference_safety_passing_parameters");
+    println!("example_reference_safety_passing_parameters, DONE");
 }
 
 //  When a function takes a single reference as argument, and returns a single reference, it is assumed those two references must have the same lifetime.
@@ -240,7 +253,8 @@ fn example_reference_safety_passing_parameters() {
 //      fn f<'a>(v: &'a [i32]) -> &'a i32 {}
 //  In Rust, when we recieve a reference as argument and return a reference, the assumption is the returned reference points to something in the input (or possibly alternatively at a static value).
 
-fn example_reference_safety_returning_references() {
+fn example_reference_safety_returning_references() 
+{
     //  Reference returned has same lifetime as reference received as argument
     fn first_i<'a>(v: &'a [i32]) -> &'a i32 { return &v[0]; }
 
@@ -256,13 +270,14 @@ fn example_reference_safety_returning_references() {
     //  Declare a function with multiple lifetime parameters:
     fn f<'a, 'b>(r: &'a i32, s: &'b i32) -> &'a i32 { r }
 
-    println!("example_reference_safety_returning_references");
+    println!("example_reference_safety_returning_references, DONE");
 }
 //  Since Rust will not compile unsafe code, it is a valid approach to start with the simplest possible definition, and then add <loosen-restrictions> add lifetime parameters until it compiles
 
 
 //  A struct <or other type> that does not have a lifetime parameter does not contain other types with lifetime parameters (that is, references with non-'static lifetimes)
-fn example_reference_safety_structs_containing_references() {
+fn example_reference_safety_structs_containing_references() 
+{
     //  invalid: must provide lifetime parameter
     //struct S1 { r: &i32 };
 
@@ -283,7 +298,7 @@ fn example_reference_safety_structs_containing_references() {
     //  S2 does not contain a lifetime parameter
     struct T2 { s: S2 };
 
-    //  Book claims example should fail:
+    //  <(Book claims example should fail:)>
     ////  Distinct lifetime parameters:
     //struct SA1<'a> { x: &'a i32, y: &'a i32 };
     //let x = 10; 
@@ -299,18 +314,95 @@ fn example_reference_safety_structs_containing_references() {
     //  Declare struct with multiple lifetime parameters:
     struct SA2<'a, 'b> { x: &'a i32, y: &'b i32 };
 
-    println!("example_reference_safety_structs_containing_references");
+    println!("example_reference_safety_structs_containing_references, DONE");
 }
 
 
-fn example_reference_safety_omitting_lifetime_parameters() {
+fn example_reference_safety_omitting_lifetime_parameters() 
+{
+    struct SA<'a, 'b> { x: &'a i32, y: &'b i32 };
+
+    //  <(For functions that do not return a reference, specifying lifetime parameters is not necessary - Rust will assign a distinct lifetime to each <spot/item/parameter> that needs one)> <(structs with references do however require lifetime parameters)>
+    //  Equivalent:
+    fn sum_rxy_i(r: &i32, s: SA) -> i32 { r + s.x + s.y }
+    fn sum_rxy_ii<'a, 'b, 'c>(r: &'a i32, s: SA<'b, 'c>) -> i32 { r + s.x + s.y }
+
+    //  <(If a function that returns a reference only has a single lifetime parameter for its arguments, Rust assumes that must be the lifetime parameter of the returned reference:)>
+    //  Equivalent:
+    fn first_third_i(p: &[i32; 3]) -> (&i32, &i32) { (&p[0], &p[2]) }
+    fn first_third_ii<'a>(p: &'a [i32; 3]) -> (&'a i32, &'a i32) { (&p[0], &p[2]) }
+
+    //  <(If a function that returns a reference has multiple lifetime parameters for its arguments, Rust requires that we specify which applies to the return value)>
+    //fn f_i(x: &i32, y: &i32) -> &i32 { x }      //  invalid 
+    fn f_ii<'a, 'b>(x: &'a i32, y: &'b i32) -> &'a i32 { x }
+
+    //  <(However, if one of the arguments is a reference to 'self', that is assumed to be the lifetime of the return parameter)>
+    struct StringTable { elements: Vec<String> }
+    impl StringTable {
+        fn find_by_prefix(&self, prefix: &str) -> Option<&String> {
+            for i in 0..self.elements.len() {
+                if self.elements[i].starts_with(prefix) {
+                    return Some(&self.elements[i]);
+                }
+            }
+            None
+        }
+    }
+
+    println!("example_reference_safety_omitting_lifetime_parameters, DONE");
 }
 
 
-//  C++ vs Rust References:
-//      C++ converts implicitly between references/lvalues, Rust only converts implicitly for the '.' operator <(and comparison operators?)>
-//      C++ references cannot be re-assigned, Rust references can
-//      <(Only the C++ compiler can create references to references)>, Rust allows references to references
+fn example_sharing_vs_mutation() 
+{
+    fn extend(vec: &mut Vec<f64>, slice: &[f64]) { for x in slice { vec.push(*x); } }
+
+    //  <(Throughout its life, a shared reference makes its referent read-only)>
+    //  <(Throughout its life, a mutable reference makes its referent inaccessible)>
+
+    let mut v = vec![4,8,19,27,34,10];
+    let r = &v;
+    v[0] = 5;                           //  reference 'r' no longer valid
+    //println!("v[0]=({})", r[0]);      //  invalid
+
+    let r = &v;
+    let a = v;                          //  reference 'r' no longer valid
+    //println!("v[0]=({})", r[0]);      //  invalid
+
+    let mut v = vec![4,8,19,27,34,10];
+    let r = &mut v;
+    v[0] = 5;                           //  mutable reference 'r' no longer valid
+    //r[0] = 8;                         //  invalid
+
+    let r = &v;
+    println!("v[0]=({})", v[0]);
+    println!("r[0]=({})", r[0]);
+
+    let r = &mut v;
+    //println!("v[0]=({})", v[0]);      //  invalid, cannot access 'v' during lifetime of mutable reference 'r'
+    //println!("r[0]=({})", r[0]);
+
+    //  <(Modifying containers while using <pointers/iterators> to their contents is problematic in many languages)>
+    //  Rust's rules for mutation and sharing prevent these kind of errors:
+    //  During the lifetime of a shared reference, the value it points to is read only. 
+    //  During the lifetime of a mutable reference, the value it points can only be read/modified though said reference
+    //  <(This leaves us with no way to invalidate a reference)>
+
+    //  Cannot borrow shared and mutable reference at the same time
+    let mut wave = vec![0.0, 1.0, 0.0, -1.0];
+    //extend(&mut wave, &wave);         //  invalid
+
+
+    let mut x = 10;
+    let r1 = &x;
+    let r2 = &x;
+    x += 10;
+
+
+    println!("example_sharing_vs_mutation, DONE");
+}
+
+
 
 fn main() {
     example_table();
@@ -323,5 +415,6 @@ fn main() {
     example_reference_safety_passing_parameters();
     example_reference_safety_structs_containing_references();
     example_reference_safety_omitting_lifetime_parameters();
+    example_sharing_vs_mutation();
 }
 
