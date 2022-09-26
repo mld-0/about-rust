@@ -4,13 +4,13 @@
 //  {{{2
 //  Ongoings:
 //  {{{
-//  Ongoing: 2022-09-21T04:41:47AEST The '.' operator implicitly dereferences it left operand if needed -> any posibility for <ambiguity>?
+//  Ongoing: 2022-09-21T04:41:47AEST The '.' operator implicitly dereferences it left operand if needed -> any possibility for <ambiguity>?
 //  Ongoing: 2022-09-21T04:50:37AEST mutable shared reference vs mutable reference
 //  Ongoing: 2022-09-21T05:07:24AEST if comparison operators see-through references (of the same type) does 'assert_eq!' have the same behaviour?
 //  Ongoing: 2022-09-21T05:18:37AEST rvalues in rust?
 //  Ongoing: 2022-09-21T22:34:47AEST one can declare a non-mutable variable 'let x', and assign it a value in different statements (but we will not be allowed to use it until we do?)
 //  Ongoing: 2022-09-21T23:55:05AEST (surely) a later chapter covers parameter lifetime syntax 'fn f<'a>(p: &'a i32)' in detail(?)
-//  Ongoing: 2022-09-22T00:12:29AEST returning a reference that outlives reference recieved as argument (something we probably don't want to do) (or else the default wouldn't be giving them the same lifetime)
+//  Ongoing: 2022-09-22T00:12:29AEST returning a reference that outlives reference received as argument (something we probably don't want to do) (or else the default wouldn't be giving them the same lifetime)
 //  }}}
 #![allow(unused)]
 #![allow(non_snake_case)]
@@ -251,7 +251,7 @@ fn example_reference_safety_passing_parameters()
 //  Equivalent:
 //      fn f(v: &[i32]) -> &i32 {}
 //      fn f<'a>(v: &'a [i32]) -> &'a i32 {}
-//  In Rust, when we recieve a reference as argument and return a reference, the assumption is the returned reference points to something in the input (or possibly alternatively at a static value).
+//  In Rust, when we receive a reference as argument and return a reference, the assumption is the returned reference points to something in the input (or possibly alternatively at a static value).
 
 fn example_reference_safety_returning_references() 
 {
@@ -392,16 +392,30 @@ fn example_sharing_vs_mutation()
     let mut wave = vec![0.0, 1.0, 0.0, -1.0];
     //extend(&mut wave, &wave);         //  invalid
 
-
+    //  <(Book claims example should fail:)>
     let mut x = 10;
     let r1 = &x;
     let r2 = &x;
     x += 10;
+    let m = &mut x;
 
+    let mut w = (107,109);
+    let r = &w;
+    let r0 = &r.0;
+    //let r1 = &mut r.1;                //  invalid, cannot borrow shared reference as mutable
+
+    //  By requiring mutable access to be exclusive, Rust prevents a variety of mistakes, (including):
+    //      self assignment
+    //      memcpy with overlapping regions
+    //      invalidating iterators by modifying container
+    //      data races
 
     println!("example_sharing_vs_mutation, DONE");
 }
 
+
+//  Automatic memory management has lead to a tendency for a 'seas of objects'
+//  Rust makes it more difficult to create a cycle of objects (doing so requires a reference counting pointer and interior mutability)
 
 
 fn main() {
