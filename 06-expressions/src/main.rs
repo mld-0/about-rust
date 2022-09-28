@@ -323,7 +323,7 @@ fn example_assignment()
 
 fn example_type_casts() 
 {
-    //  Rust requires explicit casts with the 'as' keyword
+    //  Rust generally requires explicit casts with the 'as' keyword
 
     //  Numbers can be cast between any builtin numeric types
     //  Casting between integer types are always well defined
@@ -337,7 +337,28 @@ fn example_type_casts()
     //  The reverse is generally not allowed (u8 to char being the exception)
     //  (there are methods, like 'std::char::from_u32()' to perform such conversions)
 
+    //  Conversions performed without casts (implemented by Deref trait)
+    //      mutable reference to shared reference
+    //      &String to &str
+    //      &Vec<T> to &[T]
+    //      &Box<T> to &T
+
     println!("example_type_casts, DONE");
+}
+
+
+fn example_closures()
+{
+    //  Lightweight function-like values (lambdas)
+    let is_even = |x| x % 2 == 0;
+
+    //  If the argument/return types are not given, they will be infered from how it is used
+    assert_eq!(is_even(5), false);
+
+    //  If the return type is specified explicitly, then the body of the closure must be enclosed in braces
+    let is_even = |x: u64| -> bool { x % 2 == 0 };
+
+    assert_eq!(is_even(4), true);
 }
 
 
