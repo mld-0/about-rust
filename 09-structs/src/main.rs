@@ -4,7 +4,16 @@
 //  {{{2
 //  Ongoings:
 //  {{{
-//  Ongoing: 2022-10-07T23:27:37AEDT what does it even mean for a struct (or its fields) to be private/public [...] (structs are private by default, visible only in the module where they’re declared. You can make a struct visible outside its module by prefixing its definition with pub) [...] (a Rust module is analogues to a file(?)) [...] examples of where this outside-module use of structs/their-elements possible(?)
+//  Ongoing: 2022-10-07T23:27:37AEDT what does it even mean for a struct (or its fields) to be private/public [...] (structs are private by default, visible only in the module where they’re declared. You can make a struct visible outside its module by prefixing its definition with pub) [...] (a Rust module is analogues to a file(?)) [...] examples of where this outside-module use of structs/their-elements possible(?) 
+//  Ongoing: 2022-10-08T03:06:29AEDT semicolons are optional after some <items/definitions> (eg: after declaring a struct) (where/meaning-of an optional semicolon?)
+//  Ongoing: 2022-10-08T03:11:47AEDT Queue (from two stacks) - is this here the same algorithm we used on this as a leetcode problem?
+//  Ongoing: 2022-10-08T03:16:55AEDT Vector, (and other Rust types/containers) are designed to be swapped with '::std::mem::swap()' (what about using it on our own types (do we have to <specialise> it?)) [...] (consider the question again for (Queue<T>, which uses) (containers of) paramaterized types)
+//  Ongoing: 2022-10-08T03:19:12AEDT ctors/dtors? (it is inconcievable that 'let mut q = Queue { older: Vec::new(), younger: Vec::new() }' is good design?)
+//  Ongoing: 2022-10-08T03:30:55AEDT Rust, (and just not worrying about memory leaking?) (when/how it can/can't happen?) [...] (and the need to even declare dtors?)
+//  Ongoing: 2022-10-08T03:40:18AEDT <significance/implications> (that we don't use mut T in Queue (either for 'Vec<mut T>' or 'push(c: mut T)' ... the things we push are non-mutable and passed by value (moved)))
+//  Ongoing: 2022-10-08T03:49:25AEDT (the implication is) reference lifetime variables are just <> to type parameters (declare in the same <> prefixed with ')
+//  Ongoing: 2022-10-08T03:50:58AEDT why book choses 'elt as its lifetime parameter
+//  Ongoing: 2022-10-08T03:54:38AEDT 'Extrema' example with parameterized type and reference lifetime (also implement 'find_extrema' as a method of Extrema?)
 //  }}}
 #![allow(unused)]
 #![allow(non_snake_case)]
@@ -126,6 +135,169 @@ fn example_struct_memoryLayout()
 
 fn example_defining_methods_impl() 
 {
+    //  Rust allows methods to be defined <for/on> any struct type
+    //  Unlike C++, methods are defined in seperate impl blocks
+
+    //  An impl block adds methods to the struct named at the top
+    //  Rust calls methods 'associated functions' (as opposed to 'free functions')
+    pub struct Queue {
+        older: Vec<char>,
+        younger: Vec<char>,
+    }
+    impl Queue {
+        //  methods recieve a reference to 'self' (or mutable self) as their first argument 
+        //  member variables must explicitly be referenced through 'self'
+        pub fn push(&mut self, c: char) {
+            self.younger.push(c);
+        }
+        pub fn pop(&mut self) -> Option<char> {
+            if self.older.is_empty() {
+                if self.younger.is_empty() {
+                    return None;
+                }
+                use std::mem::swap;
+                swap(&mut self.older, &mut self.younger);
+                self.older.reverse();
+            }
+            self.older.pop()
+        }
+        //  Use a non-mutable 'self' reference if a mutable one is not required
+        pub fn is_empty(&self) -> bool {
+            self.older.is_empty() && self.younger.is_empty()
+        }
+        //  A method can take ownership of itself by recieving 'self' by-value
+        pub fn split(self) -> (Vec<char>,Vec<char>) {
+            (self.older, self.younger)
+        }
+        //  Static methods are methods that do not recieve 'self'
+        //  These can be used to create constructor functions
+        //  Convention is to call constructor functions 'new' (though this is not a requirement)
+        pub fn new() -> Queue {
+            Queue { older: Vec::new(), younger: Vec::new(), }
+        }
+        //  <(Rust provides <custom> destructors as 'drop(&mut self)')>
+        //  <(default <implicit> dtor behaviour / need for dtors at all?)>
+    }
+
+    //  Custom creation
+    let mut queue = Queue { older: Vec::new(), younger: Vec::new() };
+
+    //  <ctor/factory-function> creation
+    let mut queue = Queue::new();
+
+    assert!(queue.is_empty());
+    queue.push('0');
+    queue.push('1');
+    assert!(!queue.is_empty());
+    assert_eq!(queue.pop(), Some('0'));
+    queue.push('2');
+    assert_eq!(queue.pop(), Some('1'));
+    assert_eq!(queue.pop(), Some('2'));
+    assert_eq!(queue.pop(), None);
+    assert!(queue.is_empty());
+
+    //  The '.' operator automatically dereferences its operands:
+    //  Equivalent:
+    //queue.push('1');
+    //(&mut queue).push('1');
+
+    //  Rust permits any type to have methods defined (including enums and primatives)
+    //  (This is why Rust does not use the term 'object', instead calling everything a value)
+
+    //  <(impl blocks are also used to implement traits)>
+
+    println!("example_defining_methods_impl, DONE");
+}
+
+
+fn example_generic_structs() 
+{
+    //  Rust allows generic structs, that is templates with variable type(s)
+    pub struct Queue<T> {
+        older: Vec<T>,
+        younger: Vec<T>,
+    }
+    impl<T> Queue<T> {
+        pub fn push(&mut self, c: T) {
+            self.younger.push(c);
+        }
+        pub fn pop(&mut self) -> Option<T> {
+            if self.older.is_empty() {
+                if self.younger.is_empty() {
+                    return None;
+                }
+                use std::mem::swap;
+                swap(&mut self.older, &mut self.younger);
+                self.older.reverse();
+            }
+            self.older.pop()
+        }
+        pub fn is_empty(&self) -> bool {
+            self.older.is_empty() && self.younger.is_empty()
+        }
+        pub fn split(self) -> (Vec<T>,Vec<T>) {
+            (self.older, self.younger)
+        }
+        pub fn new() -> Queue<T> {
+            Queue { older: Vec::new(), younger: Vec::new(), }
+        }
+    }
+
+    //  The type parameter can be supplied explicitly
+    let mut queue = Queue::<char>::new();
+
+    //  Or we can let Rust deduce it from how we use the variable in question
+    let mut queue = Queue::new();
+    assert!(queue.is_empty());
+    queue.push('0');
+    queue.push('1');
+    assert!(!queue.is_empty());
+    assert_eq!(queue.pop(), Some('0'));
+    queue.push('2');
+    assert_eq!(queue.pop(), Some('1'));
+    assert_eq!(queue.pop(), Some('2'));
+    assert_eq!(queue.pop(), None);
+    assert!(queue.is_empty());
+
+    println!("example_generic_structs, DONE");
+}
+
+
+fn example_struct_reference_lifetimeParameters() 
+{
+    //  If a struct contains references, we must name those references lifetime (see ch05)
+    //struct S1 { x: &i32 }         //  invalid
+    //  This is done with lifetime parameters
+    struct S2<'a> { x: &'a i32 }
+
+    struct Extrema<'a> { greatest: &'a i32, least: &'a i32, }
+    fn find_extrema<'a>(slice: &'a [i32]) -> Extrema<'a> {
+        let mut greatest = &slice[0];
+        let mut least = &slice[0];
+        for i in 1..slice.len() {
+            if slice[i] < *least { least = &slice[i]; }
+            if slice[i] > *greatest { greatest = &slice[i]; }
+        }
+        Extrema { greatest, least }
+    }
+    let a = [0,-3,0,15,48];
+    let e = find_extrema(&a);
+    assert_eq!(*e.least, -3);
+    assert_eq!(*e.greatest, 48);
+
+    //  <(Alternatively, we can omit the lifetime reference parameter when there's one obvious candidate)>
+    //  Also valid: 'fn find_extrem(slice: &[i32]) -> Extrema'
+    //  <(So long as we didn't mean Extrema<'static>)>
+
+    //  <(impl Extrema)>
+    //  <(struct Extrema<T,'a>)>
+
+    println!("example_struct_reference_lifetimeParameters, DONE");
+}
+
+fn example_deriving_common_struct_traits()
+{
+    println!("example_deriving_common_struct_traits, DONE");
 }
 
 
@@ -136,5 +308,8 @@ fn main()
     example_unitLike_structs();
     example_struct_memoryLayout();
     example_defining_methods_impl();
+    example_generic_structs();
+    example_struct_reference_lifetimeParameters();
+    example_deriving_common_struct_traits();
 }
 
