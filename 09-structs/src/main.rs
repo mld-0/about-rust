@@ -14,6 +14,9 @@
 //  Ongoing: 2022-10-08T03:49:25AEDT (the implication is) reference lifetime variables are just <> to type parameters (declare in the same <> prefixed with ')
 //  Ongoing: 2022-10-08T03:50:58AEDT why book choses 'elt as its lifetime parameter
 //  Ongoing: 2022-10-08T03:54:38AEDT 'Extrema' example with parameterized type and reference lifetime (also implement 'find_extrema' as a method of Extrema?)
+//  Ongoing: 2022-10-08T23:41:34AEDT 'interior mutability' is talking about something other than mutable member variables in an immutable struct? (<- can modify mutable instance of struct in which nothing is declared mutable already) [...] (it's talking about mutable things inside immutable instance of a struct (for which it offers Cell and RefCell as solutions)?) [...] (mutability does not belong in the definition of a struct?)
+//  Ongoing: 2022-10-09T00:11:57AEDT Cells vs Boxes?
+//  Ongoing: 2022-10-09T00:13:16AEDT warn for unused functions (but not unused types)?
 //  }}}
 #![allow(unused)]
 #![allow(non_snake_case)]
@@ -291,13 +294,98 @@ fn example_struct_reference_lifetimeParameters()
 
     //  <(impl Extrema)>
     //  <(struct Extrema<T,'a>)>
+    //  <(impl Extrema<T,'a>)>
 
     println!("example_struct_reference_lifetimeParameters, DONE");
 }
 
 fn example_deriving_common_struct_traits()
 {
+    //  Copy, Clone, Debug, and PartialEq are examples of traits
+
+    //  'Copy' makes the type copyable (on assignment) <(shallow copy?)>
+    //  'Clone' provides the 'clone()' method <(deep copy?)>
+    //  'Debug' allows outputting with '{:?}' format specifier 
+    //  'PartialEq' is an alternative to 'Eq' that supports partial equivalence relations (eg: NaN != NaN)
+
+    //  These traits can be automatically implemented for a given struct (provided each field implements that trait):
+    #[derive(Copy, Clone, Debug, PartialEq)]
+    struct Point {
+        x: f64, y: f64,
+    }
+    //  Derived traits are public
+
+    let mut p1 = Point { x: 5.0, y: 6.0, };
+    let mut p2 = p1;
+    let mut p3 = p1.clone();
+    println!("p1=({:?})", p1);
+    println!("p2=({:?})", p2);
+    println!("p3=({:?})", p3);
+
     println!("example_deriving_common_struct_traits, DONE");
+}
+
+fn example_interior_mutability()
+{
+    use std::cell::{Cell,RefCell};
+    use std::fs::File;
+
+    //  Sometimes, we need mutable values inside an otherwise immutable struct
+    //  Rust provides 'Cell<T>' and 'RefCell<T>' for this purpouse
+ 
+    //  Any type that contains Cell/RefCell is not thread safe 
+    //  (and Rust will not allow concurrent access to them)
+
+    //  'Cell' allows us to get/set its field even if it is not mutable
+    //  <(we cannot borrow a reference (mutable or shared) to its contents)>
+    //  <(it does not allow mutable methods to be called on its contents)>
+    //  <(meaning 'Cell::<T>::get()' only works if T is copyable(?))>
+    //      Cell::new(value)
+    //      cell.get()
+    //      cell.set(value)
+
+    //  'RefCell' is like Cell, but it also supports borrowing shared/mutable references to its contents
+    //  <(the rules of reference borrowing are enforced at runtime, not compile-time)>
+    //      RefCell::new(value)
+    //      ref_cell.borrow()
+    //      ref_cell.borrow_mut()
+
+    pub struct SpiderRobot {
+        serial_no: u32,
+        hardware_error_count: Cell<u32>,
+        log_buffer: RefCell<String>,
+    }
+    impl SpiderRobot {
+        pub fn new(serial_no: u32) -> SpiderRobot {
+            SpiderRobot { 
+                serial_no, 
+                hardware_error_count: Cell::<u32>::new(0), 
+                log_buffer: RefCell::<String>::new("".to_string()), 
+            }
+        }
+        pub fn add_hardware_error(&self) {
+            let temp = self.hardware_error_count.get();
+            self.hardware_error_count.set(temp + 1);
+        }
+        pub fn has_hardware_error(&self) -> bool {
+            self.hardware_error_count.get() > 0
+        }
+        pub fn log(&self, msg: &str) {
+            let mut p = self.log_buffer.borrow_mut();
+            p.push_str(msg); p.push_str("\n");
+        }
+    }
+
+    let s1 = SpiderRobot::new(1);
+    //s1.serial_no = 5;             //  error, 's1' is not mutable
+    assert!(!s1.has_hardware_error());
+    s1.add_hardware_error();
+    assert!(s1.has_hardware_error());
+    assert_eq!(*s1.log_buffer.borrow(), "");
+    s1.log("line one");
+    assert_eq!(*s1.log_buffer.borrow(), "line one\n");
+
+    println!("example_interior_mutability, DONE");
 }
 
 
@@ -311,5 +399,6 @@ fn main()
     example_generic_structs();
     example_struct_reference_lifetimeParameters();
     example_deriving_common_struct_traits();
+    example_interior_mutability();
 }
 
