@@ -13,6 +13,7 @@
 //  Ongoing: 2022-10-13T00:35:12AEDT writing a custom Result/Error <type>, (why/how)
 //  Ongoing: 2022-10-13T00:39:08AEDT relationship between box/reference (putting something in a box means we are going to be accessing it through references) (but also Box<TraitObject> can be used to store anything that implements TraitObject(?) (just as a &TraitObject can) (what is going on here))
 //  Ongoing: 2022-10-13T01:32:55AEDT presumedly (default methods are (meant to be) defined in terms of non-default methods?) ('write_all' is defined in terms of 'write') (what is the difference between them (both recieve an array of bytes?)) [...] (book gives example of Iterator, which has one required / dozens of default methods (and a promise to explain in ch15))
+//  Ongoing: 2022-10-14T00:05:00AEDT subtraits overriding (things from) their <parent> trait?
 //  }}}
 #![allow(unused)]
 #![allow(non_snake_case)]
@@ -275,8 +276,106 @@ fn example_defaultMethods()
 
 fn example_traitsAndExistingTypes()
 {
-    //  <>
+    //  Rust allows traits to be implemented for any type introduced in the current crate
+    //  A trait created to add a method to an exiting type is an extension trait
+
+    //  Adding extension trait to a family of types:
+    use std::io::{self,Write};
+    struct HtmlDocument {};
+    trait WriteHtml {
+        fn write_html(&mut self, html: &HtmlDocument) -> io::Result<()>;
+    }
+    //  (Implement WriteHtml for every type W that implements Write)
+    impl<W: Write> WriteHtml for W {
+        fn write_html(&mut self, html: &HtmlDocument) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    //  Coherence rule: when implementing a trait, either the trait or type must be new in the current crate
+    //  (to ensure that trait implementations are unique)
+
     println!("example_traitsAndExistingTypes, DONE");
+}
+
+
+fn example_self_in_traits()
+{
+    //  A trait can use the keyword 'Self' as a type
+    pub trait Clone {
+        fn clone(&self) -> Self;
+    }
+    pub trait Spliceable {
+        fn splice(&self, other: &Self) -> Self;
+    }
+    //  <('Self' refers to the type which implements the trait?)>
+
+    //  A trait that uses 'Self' type is incompatible with trait objects
+    //fn splice_anything(l: &dyn Spliceable, r: &dyn Spliceable) {              //  error
+    //}            
+    //  <(this is because the compiler has no way to typecheck l/r)>
+    //  (trait objects are intended for the simplest kinds of traits)
+    //  <(other features with preclude use of trait objects?)>
+
+    //  <(instead use:)>
+    pub trait MegaSpliceable {
+        fn splice(&self, other: &dyn MegaSpliceable) -> Box<dyn MegaSpliceable>;
+    }
+    fn splice_anything(l: &dyn MegaSpliceable, r: &dyn MegaSpliceable) {}
+
+    println!("example_self_in_traits, DONE");
+}
+
+
+fn example_subtraits()
+{
+    //  We can declare traits as extensions of another trait
+    trait Visible {
+    }
+    trait Creature: Visible {
+    }
+    //  (All Creatures are Visible)
+    //  (Every type that implements Creature must also implement Visible)
+
+    println!("example_subtraits, DONE");
+}
+
+
+fn example_trait_static_methods()
+{
+    //  Rust allows traits to have static methods/contructors
+    trait StringSet {
+        fn new() -> Self;
+        fn from_slice(strings: &[&str]) -> Self;
+        fn contains(&self, string: &str) -> bool;
+        fn add(&mut self, string: &str);
+    }
+    //  <(static methods are those that don't take an argument 'self'?)>
+
+    //  <(Using a static constructor from a generic type:)>
+    fn unknown_words<S: StringSet>(document: &Vec<String>, wordlist: &S) -> S {
+        let mut unknowns = S::new();
+        for word in document {
+            if !wordlist.contains(word) {
+                unknowns.add(word);
+            }
+        }
+        unknowns
+    }
+
+    //  Trait objects don't support static methods
+    //  (unless we add 'Self: Sized' bound to each one)
+    trait StringSet2 {
+        fn new() -> Self
+            where Self: Sized;
+        fn from_slice(strings: &[&str]) -> Self
+            where Self: Sized;
+        fn contains(&self, string: &str) -> bool;
+        fn add(&mut self, string: &str);
+    }
+    //  <(Sized: tells Rust trait objects are excused from supporting this method)>
+
+    println!("example_trait_static_methods, DONE");
 }
 
 
@@ -288,5 +387,8 @@ fn main()
     example_definingTraits();
     example_defaultMethods();
     example_traitsAndExistingTypes();
+    example_self_in_traits();
+    example_subtraits();
+    example_trait_static_methods();
 }
 
