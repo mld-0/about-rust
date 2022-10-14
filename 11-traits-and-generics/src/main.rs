@@ -14,10 +14,19 @@
 //  Ongoing: 2022-10-13T00:39:08AEDT relationship between box/reference (putting something in a box means we are going to be accessing it through references) (but also Box<TraitObject> can be used to store anything that implements TraitObject(?) (just as a &TraitObject can) (what is going on here))
 //  Ongoing: 2022-10-13T01:32:55AEDT presumedly (default methods are (meant to be) defined in terms of non-default methods?) ('write_all' is defined in terms of 'write') (what is the difference between them (both recieve an array of bytes?)) [...] (book gives example of Iterator, which has one required / dozens of default methods (and a promise to explain in ch15))
 //  Ongoing: 2022-10-14T00:05:00AEDT subtraits overriding (things from) their <parent> trait?
+//  Ongoing: 2022-10-14T22:31:15AEDT subtraits <and/or> inheritance(?)
+//  Ongoing: 2022-10-14T22:38:46AEDT (qualified calls can be needed for (a type with) two methods of the same name) -> Rust allows this?
+//  Ongoing: 2022-10-14T22:40:34AEDT what does '<str as ToString>::to_string()' provide that 'str::to_string()' doesn't?
+//  Ongoing: 2022-10-14T22:41:56AEDT (how to know if a method call is 'fully' qualified?)
+//  Ongoing: 2022-10-14T22:49:47AEDT Iterator defines 'type Item' (instead of using a type parameter) (why?) [...] (it is a type which is not intended to be parameterised in the implementing class?) [...] (<is that> what the keyword 'type' means in the context of a trait (can structs have them)?) [...] ~~(we do not use 'Self::Item' in the class implementing the trait?~~ -> actually we can (but book example does not))
+//  Ongoing: 2022-10-14T23:23:24AEDT make something iterable (without implementing 'Iterator')
+//  Ongoing: 2022-10-14T23:58:57AEDT 'T::default()' provides a 0 of any numeric type -> (what is the best way to get a '3' of any numeric type?) [...] (does any trait make '0 as T' available?)
+//  Ongoing: 2022-10-15T00:31:19AEDT is the default Output type of Add/Mul not Self (why do we have to specify 'T: Add<Output=T>' for 'dot()'(?))
 //  }}}
 #![allow(unused)]
 #![allow(non_snake_case)]
 //  Continue: 2022-10-13T00:06:23AEDT de-comment (complete) examples which are commented (required traits not available)
+//  Continue: 2022-10-14T22:12:26AEDT explain 'dyn' keyword
 
 use std::fs::File;
 use std::env::temp_dir;
@@ -56,9 +65,11 @@ fn example_traits()
     //  Usage with file:
     let mut f = File::create(path_output).unwrap();
     let mut buffer = Vec::<u8>::new();
-    //  Rust automatically converts ordinary references into trait objects where needed:
+    //  Rust automatically converts ordinary references into <(references to)> trait objects where needed:
     write_helloWorld(&mut f);
     write_helloWorld(&mut buffer);
+    let p_buffer: &mut dyn Write = &mut buffer;
+    drop(p_buffer);
     assert_eq!(buffer, b"hello world\n");
 
     //  Using traits:
@@ -120,7 +131,7 @@ fn example_generics()
     //  Rewriting our trait type reference function as a generic function
     fn write_helloWorld<T: Write>(out: &mut T) -> std::io::Result<()> {
         //  (unlike a trait type reference function, we can determine the type passed)
-        //println!("{}", std::any::type_name::<T>());
+        println!("type(out)=({})", std::any::type_name::<T>());
         out.write_all(b"hello world\n")?;
         out.flush()
     }
@@ -141,35 +152,55 @@ fn example_generics()
     //  Supplying multiple (bounds) traits for a type parameter:
     fn top_ten<T: Debug + Hash + Eq>(values: &Vec<T>) {
     }
+    //  (or)
+    fn alt_top_ten<T>(values: &Vec<T>) 
+        where T: Debug + Hash + Eq {
+    }
+
+    trait Mapper {};
+    trait Reducer {};
+    trait Serialize {};
+    struct DataSet {};
+    struct Results {};
 
     //  Generic functions can have multiple type parameters:
-    //fn run_query<M: Mapper + Serialize, R: Reducer + Serialize>(data: &DataSet, map: M, reduce: R) -> Results 
-    //{}
-
+    fn run_query<M: Mapper + Serialize, R: Reducer + Serialize>(data: &DataSet, map: M, reduce: R) -> Results 
+    {
+        Results {}
+    }
     //  Alternatively:
-    //fn run_query<M,R>(data: &DataSet, map: M, reduce: R) -> Results 
-    //    where M: Mapper + Serialize,
-    //        R: Reducer + Serialize
-    //{}
+    fn run_query_alt<M,R>(data: &DataSet, map: M, reduce: R) -> Results 
+        where M: Mapper + Serialize,
+            R: Reducer + Serialize
+    {
+        Results {}
+    }
     //  (this same syntax can be used wherever bounds are permitted for generic types)
+
+    struct MeasureDistance {};
 
     //  A generic function can have both lifetime parameters and type parameters:
     //  (lifetime parameters come first)
     //fn nearest<'t, 'c, P>(target: &'t P, candidates: &'c [P]) -> &'c P
     //    where P: MeasureDistance
-    //{}
+    //{
+    //}
     //  <(lifetimes do not impact machine code, they are provided for checking by the compiler)>
 
     //  Enums and Structs can also use type parameters 
 
+    trait Topping {};
+    struct PancakeError {};
+
     //  Indervidual methods can be generic (even if the type they are defined on is not):
-    //struct PancakeStack {};
-    //impl PancakeStack {
-    //    fn push<T: Topping>(&mut self, goop: T) -> PancakeResult<()> {
-    //    }
-    //}
+    struct PancakeStack {};
+    impl PancakeStack {
+        fn push<T: Topping>(&mut self, goop: T) -> Result<(),PancakeError> {
+            Ok(())
+        }
+    }
     //  Type aliases can be generic
-    //type PancakeResult<T> = Result<T,PancakeError>;
+    type PancakeResult<T> = Result<T,PancakeError>;
 
     drop(f);
     println!("example_generics, DONE");
@@ -299,7 +330,7 @@ fn example_traitsAndExistingTypes()
 }
 
 
-fn example_self_in_traits()
+fn example_Self_in_traits()
 {
     //  A trait can use the keyword 'Self' as a type
     pub trait Clone {
@@ -323,7 +354,7 @@ fn example_self_in_traits()
     }
     fn splice_anything(l: &dyn MegaSpliceable, r: &dyn MegaSpliceable) {}
 
-    println!("example_self_in_traits, DONE");
+    println!("example_Self_in_traits, DONE");
 }
 
 
@@ -373,9 +404,185 @@ fn example_trait_static_methods()
         fn contains(&self, string: &str) -> bool;
         fn add(&mut self, string: &str);
     }
-    //  <(Sized: tells Rust trait objects are excused from supporting this method)>
+    //  <(Sized: tells Rust trait objects are excused from supporting this method (see ch13))>
 
     println!("example_trait_static_methods, DONE");
+}
+
+
+fn example_fullyQualified_methodCalls()
+{
+    //  Equivalent:
+    "hello".to_string();                            //  <(unqualified calls?)>
+    str::to_string("hello");                        //  qualified call
+    ToString::to_string("hello");                   //  qualified call
+    <str as ToString>::to_string("hello");          //  fully qualified call
+    //  <(in each case the string is passed as 'self' parameter)>
+    //  For the first <(unqualified)> case, Rust uses its method lookup rules to determine the function to call
+
+    //  <(qualified calls can be needed for (a type with) two methods of the same name, or where type is ambigous)>
+    let zero = 0;
+    //zero.abs();           //  error, type of 'zero' is ambigious
+    i64::abs(zero);
+
+    //  <S as StringSet>::new()
+    //  <(when/where is this needed)>
+
+    println!("example_fullyQualified_methodCalls, DONE");
+}
+
+
+fn example_traits_and_relationshipsBetweenTypes()
+{
+    //  Traits can describe the relationship between types
+    //      std::iter::Iterator         relates iterators with the type they produce
+    //      std::ops::Mul               relates types that can be multiplied
+    //      <(rand::Rng and rand::Rand)>
+
+    struct ExampleArgs {
+        args: Vec<String>,
+    };
+
+    //  Associated types: (type variables in a trait)
+    pub trait ExampleIterator {
+        type Item;      //  associated type
+        fn next(&mut self) -> Option<Self::Item>;
+    }
+
+    impl Iterator for ExampleArgs {
+        type Item = String;
+        fn next(&mut self) -> Option<Self::Item> {
+            self.args.pop()
+        }
+    }
+    //  (outside traits, 'type' defines aliases for existing types)
+
+    fn collect_into_vector<I: Iterator>(iter: I) -> Vec<I::Item> {
+        let mut result = Vec::<I::Item>::new();
+        //  (or)
+        //let mut result = Vec::new();
+        for val in iter {
+            result.push(val);
+        }
+        result
+    }
+
+    fn dump<I>(iter: I) 
+        where I: Iterator, I::Item: Debug       //  must implement 'Debug' for us to be able to print it with '{:?}'
+    {
+        for (i,val) in iter.enumerate() {
+            println!("{}: {:?}", i, val);
+        }
+    }
+    //  (or)
+    fn dump_alt_1<I>(iter: I)
+        where I: Iterator<Item=String>
+    {
+        for (i,val) in iter.enumerate() {
+            println!("{}: {:?}", i, val);
+        }
+    }
+    //  (or)
+    fn dump_alt_2(iter: &mut dyn Iterator<Item=String>) {
+        for (i,val) in iter.enumerate() {
+            println!("{}: {:?}", i, val);
+        }
+    }
+    //  (not here yet)
+    //fn dump_alt_3(iter: &mut dyn Iterator<Item: Debug>) {
+
+    //  Another example of an associated trait:
+    trait ExamplePattern {
+        type Match;
+        fn search(&self, string: &str) -> Option<Self::Match>;
+    }
+
+    println!("example_traits_and_relationshipsBetweenTypes, DONE");
+}
+
+
+fn example_genericTraits_operatorOverloading()
+{
+    //  Rust defines multiplication with the 'Mul' trait
+    //  (note 'Self' is the default type parameter)
+    pub trait ExampleMul<RHS=Self> {
+        type Output;
+        fn mul(self, rhs: RHS) -> Self::Output;
+    }
+
+    //  'lhs * rhs' is shorthand for 'Mul::mul(lhs, rhs)'
+    //  <(The '*' operator is overloaded by implementing the 'Mul' trait)>
+
+    println!("example_genericTraits_operatorOverloading, DONE");
+}
+
+
+fn example_buddy_traits()
+{
+    use rand::random;
+    use rand::Rng;
+
+    //  Buddy traits are traits designed to work together
+    //  'Rng' is a trait that can produce integers on demand
+    //  'Rand' is a buddy trait. Types that implement it can use Rnd to implement 'rand(rng)' for themselves
+    pub trait ExampleRng {
+        fn next_u32(&mut self) -> u32;
+    }
+    pub trait ExampleRand: Sized {
+        fn rand<R: Rng>(rng: &mut R) -> Self;
+    }
+
+    //  Another example:
+    //  'Hasher' is a trait implemented by hashing algorithms
+    //  'Hash' is a trait implemented by types that are hashable
+
+    //  <(this approach helps avoid the need for virtual methods / downcasts)>
+
+    println!("example_buddy_traits, DONE");
+}
+
+
+fn example_reverse_engineering_bounds()
+{
+    use std::ops::{Add,Mul};
+
+    //  Traits serve to explicitly document what kind of types a generic function is valid for.
+    //  (as opposed to C++, where the body of the function defines what types are valid)
+
+    //  Getting a zero value for a generic type
+    fn get_zero<T: Default>() -> T { T::default() }
+    fn get_zeroAlt<T: num::Num>() -> T { T::zero() }
+
+    //  A generic function requires all the right bounds before it will compile
+    //  Here we need to be able use the results of Add/Mul on our type -> we must specify the Output type of each
+    fn dot<T>(v1: &[T], v2: &[T]) -> T 
+        where T: Add<Output=T> + Mul<Output=T> + Default + Copy
+    {
+        assert_eq!(v1.len(), v2.len());
+        let mut total = T::default();
+        for i in 0 .. v1.len() {
+            total = total + v1[i] * v2[i];      //  'total' must be copyable
+        }
+        total
+    }
+    //  <(still cannot use '+=' (now the compiler is just being dumb?))>
+    assert_eq!(dot(&[1, 2, 3, 4], &[1, 1, 1, 1]), 10); 
+    assert_eq!(dot(&[53.0, 7.0], &[1.0, 5.0]), 88.0);
+
+    //  'num::Num' solves the same problem: <(must still supply 'Copy'?)>
+    fn dotAlt<T: num::Num + Copy>(v1: &[T], v2: &[T]) -> T {
+        assert_eq!(v1.len(), v2.len());
+        let mut total = T::zero();
+        for i in 0 .. v1.len() {
+            total = total + v1[i] * v2[i];      //  'total' must be copyable
+        }
+        total
+    }
+    //  <(same problem -> cannot use '+=')>
+    assert_eq!(dotAlt(&[1, 2, 3, 4], &[1, 1, 1, 1]), 10); 
+    assert_eq!(dotAlt(&[53.0, 7.0], &[1.0, 5.0]), 88.0);
+
+    println!("example_reverse_engineering_bounds, DONE");
 }
 
 
@@ -387,8 +594,13 @@ fn main()
     example_definingTraits();
     example_defaultMethods();
     example_traitsAndExistingTypes();
-    example_self_in_traits();
+    example_Self_in_traits();
     example_subtraits();
     example_trait_static_methods();
+    example_fullyQualified_methodCalls();
+    example_traits_and_relationshipsBetweenTypes();
+    example_genericTraits_operatorOverloading();
+    example_buddy_traits();
+    example_reverse_engineering_bounds();
 }
 
