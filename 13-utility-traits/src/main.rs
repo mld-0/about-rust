@@ -5,6 +5,8 @@
 //  Ongoings:
 //  {{{
 //  Ongoing: 2022-10-16T01:50:56AEDT (cannot create an unsized type directly), takeaway -> we cannot create an instance of an unsized type? (unsized types are only ever pointers to sized types?)
+//  Ongoing: 2022-10-19T00:31:24AEDT passing a reference to T vs to &T (T can be <derived> as a reference type?)
+//  Ongoing: 2022-10-19T00:34:31AEDT (a better explanation of type coercion)
 //  }}}
 #![allow(unused)]
 #![allow(non_snake_case)]
@@ -166,11 +168,113 @@ fn example_copy()
     println!("example_copy, DONE");
 }
 
+
+fn example_Deref_DerefMut()
+{
+    use std::ops::{Deref,DerefMut};
+    use std::fmt::Display;
+    //  The dereferencing operators <are/include> '*' / '.'
+    //  We can specify how these operate through the traits 'std::ops::Deref' / 'std::ops::DerefMut'
+
+    trait ExampleDeref {
+        type Target: ?Sized;
+        fn deref(&self) -> &Self::Target;
+    }
+    trait ExampleDerefMut: Deref {
+        fn deref_mut(&mut self) -> &mut Self::Target;
+    }
+    //  ('self' remains borrowed for as long as the returned reference lives
+
+    //  <(deref coercions: if inserting a deref would prevent a type mis-match, Rust inserts one for you)>
+    //  eg:
+    //      r.find('?')         (*r).find('?')
+
+    struct Selector<T> {
+        elements: Vec<T>,
+        current: usize,
+    }
+    impl<T> Deref for Selector<T> {
+        type Target = T;
+        fn deref(&self) -> &T {
+            &self.elements[self.current]
+        }
+    }
+    impl<T> DerefMut for Selector<T> {
+        fn deref_mut(&mut self) -> &mut T {
+            &mut self.elements[self.current]
+        }
+    }
+
+    let mut s = Selector { elements: vec!['x','y','z',], current: 2 };
+    assert_eq!(*s, 'z');
+    *s = 'w';
+    assert_eq!(s.elements, ['x','y','z']);
+
+    //  deref coercion:
+    assert!(s.is_alphabetic());
+
+    //  (Do not implement Deref/Derefmut for a type just to make another types methods visible)
+
+    let mut s = Selector { elements: vec!["abc", "def", "hij"], current: 1 };
+
+    //  <(type coercion does not work for generic functions)>:
+    fn show_it(thing: &str) { println!("{}", thing); }
+    fn show_it_generic<T: Display>(thing: T) { println!("{}", thing); }
+    show_it(&s);
+    //show_it_generic(&s);              //  <(error)>
+    show_it_generic(&s as &str);
+
+
+    println!("example_Deref_DerefMut, DONE");
+}
+
+fn example_default()
+{
+    //  'std::default::Default' is for types that have an obvious default value
+    use std::default::Default;
+    use std::collections::HashSet;
+
+    trait ExampleDefault {
+        fn default() -> Self;
+    }
+
+    impl ExampleDefault for String {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
+    //  For Rust's default container types, Default returns an empty collection
+    //  <>
+
+    //  If type T implements Default, then Default for the following is implemented automatically:
+    //  Rc<T>, Arc<T>, Box<T>, Cell<T>, RefCell<T>, Cow<T>, Mutex<T>, RwLock<T>
+
+    //  If all types of a tuple type implement Default, then that tuple type automatically does as well
+
+    //  If all fields of struct implement Default, then Default can be derived for that struct
+    #[derive(Default)]
+    struct Foo { a: i32, b: f32, d: bool, }
+
+    //  The default of Option<T> is None
+
+    println!("example_default, DONE");
+}
+
+fn example_AsRef_AsMut()
+{
+    println!("example_AsRef_AsMut, DONE");
+}
+
+
 fn main() 
 {
     example_drop();
     example_sized();
     example_clone();
     example_copy();
+    example_Deref_DerefMut();
+    example_default();
+    example_AsRef_AsMut();
 }
 
