@@ -16,22 +16,39 @@
 //  Ongoing: 2022-10-20T00:00:11AEDT book uses 'fn from(T)' (ignoring varname) where T is the type parameter -> we cannot (not supply the varname)?
 //  Ongoing: 2022-10-20T00:33:47AEDT how to specify function parameter bound 'MyType::From(T)' exists 
 //  Ongoing: 2022-10-20T00:41:21AEDT (To/From are restricted to conversions that cannot fail) -> (can AsRef/Borrow fail?)
+//  Ongoing: 2022-10-20T03:58:57AEDT (is it correct to say) '.to_owned()' can return a by-value type where Borrow could only provide a reference to that type?
+//  Ongoing: 2022-10-20T04:05:47AEDT which traits (even/especially those with paths given here) do not need to be imported to be used
+//  Ongoing: 2022-10-20T04:10:21AEDT put an '_' after 'Example' in each such named trait/type 
+//  Ongoing: 2022-10-20T04:14:02AEDT (did we come across this syntax when looking at lifetime parameters?) '<'a, B: ?Sized + 'a>'
+//  Ongoing: 2022-10-20T04:18:08AEDT significance of cast: <T as UtilityTrait> (and optionally with '::<something>' appended to it)
+//  Ongoing: 2022-10-20T04:50:19AEDT how hard to implement Cow (copy-on-write) type
+//  Ongoing: 2022-10-20T04:53:18AEDT clarify, (does 'to_owned()' ever return a reference?)
+//  Ongoing: 2022-10-20T05:02:18AEDT (how to put something into) Cow<String> (vs Cow<str>)
+//  Ongoing: 2022-10-20T05:33:25AEDT Cow, book example -> book use of 'Error' (something not visible to us?)
 //  }}}
 #![allow(unused)]
 #![allow(non_snake_case)]
-//  Continue: 2022-10-16T02:09:53AEDT when to make a type copy
+//  Continue: 2022-10-16T02:09:53AEDT when to make a type copy </clone>
+//  Continue: 2022-10-20T04:02:01AEDT other useful traits
+//  Continue: 2022-10-20T05:04:19AEDT Cow, how to implement for custom types (definition says we should implement 'ToOwned', but example with str uses '.into()')
+//  Continue: 2022-10-20T05:06:52AEDT implement each trait mentioned not mentioned here for a custom type (as applicable)
 
 //  Utility traits:
-//      <>Drop                                  Destructors
 //      <>Sized                                 Mark type as fixed size known at compile time
-//      <>Clone                                 Cloning values <(deep copy)>
+//      <>Drop                                  Destructors
 //      <>Copy                                  bitwise copy <(shallow copy)>
-//      <>Deref/DerefMut                        dereference custom pointer type
-//      <>Default                               Types with a 'default' value
-//      <>AsRef/AsMut                           Borrowing references of one type from another
-//      <>Borrow/BorrowMut                      Like AsRef/AsMut, but guaranteeing consistent hashing/ordering/equality
-//      std::convert::{From/Into}               Converting one type to another (like AsRef, but by-value)
-//      <>ToOwned                               Converting a reference to an owned value
+//      <>Clone                                 Cloning values <(deep copy)>
+//      std::ops::{Deref/DerefMut}              dereference custom pointer type
+//      std::default::Default                   Types with a 'default' value
+//      std::convert::{AsRef/AsMut}             Borrowing references of one type from another
+//      std::borrow::{Borrow/BorrowMut}         Like AsRef, but guaranteeing consistent ordering/equality/hashing
+//      std::convert::{From/Into}               Converting one type to another (by-value), 1 parameter ctors
+//      std::borrow::ToOwned                    Converting a reference to a (by-value) copy (of a borrowable type)
+
+//  Other useful traits:
+//      std::fmt::Display
+//      <>Debug
+//      <>
 
 
 fn example_drop()
@@ -371,6 +388,11 @@ fn example_From_Into()
         fn from(val: T) -> Self;
     }
 
+    //  <(This is the generic (default) impementation for 'Into' in terms of 'From'(?) (and it is incomplete) ... (this is implicit?))> 
+    //impl<T,U> Into<U> for T where U: From<T> {
+    //  <...>
+    //}
+
     //  'Intro' is used to make functions more flexible in the types they accept
     use std::net::Ipv4Addr;
     fn ping<T>(address: T) -> std::io::Result<bool>
@@ -423,14 +445,74 @@ fn example_ToOwned()
     let s1: &str = "asdf";
     let S1: String = s1.to_owned();
 
+    //  <(Implement for custom type)>
+    //  <>
+
     println!("example_ToOwned, DONE");
 }
 
 
 fn example_Cow_Borrow_ToOwned_And_Ownership()
 {
-    println!("example_Cow_Borrow_ToOwned_And_Ownership, DONE");
-}
+    use std::borrow::Cow;
+    use std::borrow::Borrow;
+    use std::path::PathBuf;
+
+    //  Cow: clone on write (allows borrowing or ownership (by-ref and by-val))
+    //  Cow<B> either borrows a shared reference to B, or owns a value from which we can borrow such a reference.
+
+    //  It contains a reference to an existing object, until we try and modify that existing object at which point it is copied and all subsiquent references are to the copy.
+
+    //  Deref<Cow> returns '&Cow::Owned' if it exists, otherwise 'Cow::Borrowed'
+    //  DerefMut<Cow> returns a mutable reference to Cow::Owned
+    //  Upon calling DerefMut, if the value is Cow::Borrowed, we create 'Cow::Owned = Cow::Borrowed::to_owned()' 
+
+    //  Definition:
+    enum ExampleCow<'a, B: ?Sized + 'a>
+        where B: ToOwned
+    {
+        Borrowed( &'a B ),
+        Owned( <B as ToOwned>::Owned ),
+    }
+
+    //  <(Use with builtin types)>
+    let x: Cow<str> = "asdf".into();
+
+    struct Foo { a: i32, b: i32, c: i32, };
+    impl ToOwned for Foo {
+        type Owned = Foo;
+        fn to_owned(&self) -> Self::Owned {
+            Foo { a: self.a, b: self.b, c: self.c, }
+        }
+    }
+    //  {{{
+    //  <(no?)>
+    //impl From<&Foo> for Foo {
+    //    fn from(a: &Foo) -> Self {
+    //        Foo { a: a.a, b: a.b, c: a.c, }
+    //    }
+    //}
+    //  }}}
+    //  <(what is missing for (see below) to work?)>
+    let y: Cow<Foo> = Foo { a: 5, b: 7, c: 9 }.into();
+
+
+    //  <(Book example:)>
+    //fn describe(error: &Error) -> Cow<'static, str> {
+    //    match *error {
+    //        Error::OutOfMemory => "out of memory".into(),
+    //        Error::StackOverflow => "stack overflow".into(),
+    //        Error::MachineOnFire => "machine on fire".into(),
+    //        Error::Unfathomable => "machine bewildered".into(),
+    //        Error::FileNotFound(ref path) => format!("file not found: {}", path.display()).into(),
+    //    }
+    //}
+    //println!("Disaster has struck: {}", describe(&error));
+    //let mut log: Vec<String> = Vec::new(); 
+    //log.push(describe(&error).into_owned());
+
+        println!("example_Cow_Borrow_ToOwned_And_Ownership, DONE");
+    }
 
 
 fn main() 
