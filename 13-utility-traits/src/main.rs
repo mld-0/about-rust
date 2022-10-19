@@ -7,22 +7,31 @@
 //  Ongoing: 2022-10-16T01:50:56AEDT (cannot create an unsized type directly), takeaway -> we cannot create an instance of an unsized type? (unsized types are only ever pointers to sized types?)
 //  Ongoing: 2022-10-19T00:31:24AEDT passing a reference to T vs to &T (T can be <derived> as a reference type?)
 //  Ongoing: 2022-10-19T00:34:31AEDT (a better explanation of type coercion)
+//  Ongoing: 2022-10-19T23:04:47AEDT (rule for) when AsRef/AsMut get invoked automatically
+//  Ongoing: 2022-10-19T23:09:35AEDT can AsRef<T> be implemented for multiple T for a give type(?) (how to chose which one is invoked by '.as_ref()' (other methods of invoking AsRef))
+//  Ongoing: 2022-10-19T23:38:16AEDT how AsRef<Path> works for String
+//  Ongoing: 2022-10-19T23:43:14AEDT AsRef<&str>
+//  Ongoing: 2022-10-19T23:50:27AEDT String implements Borrow<str> (not Borrow<&str>?)
+//  Ongoing: 2022-10-19T23:59:07AEDT significance of deriving a trait from Sized
+//  Ongoing: 2022-10-20T00:00:11AEDT book uses 'fn from(T)' (ignoring varname) where T is the type parameter -> we cannot (not supply the varname)?
+//  Ongoing: 2022-10-20T00:33:47AEDT how to specify function parameter bound 'MyType::From(T)' exists 
+//  Ongoing: 2022-10-20T00:41:21AEDT (To/From are restricted to conversions that cannot fail) -> (can AsRef/Borrow fail?)
 //  }}}
 #![allow(unused)]
 #![allow(non_snake_case)]
 //  Continue: 2022-10-16T02:09:53AEDT when to make a type copy
 
 //  Utility traits:
-//      <>Drop                  Destructors
-//      <>Sized                 Mark type as fixed size known at compile time
-//      <>Clone                 Cloning values <(deep copy)>
-//      <>Copy                  bitwise copy <(shallow copy)>
-//      <>Deref/DerefMut        dereference custom pointer type
-//      <>Default               Types with a 'default' value
-//      <>AsRef/AsMut           Borrowing references of one type from another
-//      <>Borrow/BorrowMut      Like AsRef/AsMut, but guaranteeing consistent hashing/ordering/equality
-//      <>From/Into             Converting one type to another
-//      <>ToOwned               Converting a reference to an owned value
+//      <>Drop                                  Destructors
+//      <>Sized                                 Mark type as fixed size known at compile time
+//      <>Clone                                 Cloning values <(deep copy)>
+//      <>Copy                                  bitwise copy <(shallow copy)>
+//      <>Deref/DerefMut                        dereference custom pointer type
+//      <>Default                               Types with a 'default' value
+//      <>AsRef/AsMut                           Borrowing references of one type from another
+//      <>Borrow/BorrowMut                      Like AsRef/AsMut, but guaranteeing consistent hashing/ordering/equality
+//      std::convert::{From/Into}               Converting one type to another (like AsRef, but by-value)
+//      <>ToOwned                               Converting a reference to an owned value
 
 
 fn example_drop()
@@ -42,6 +51,7 @@ fn example_drop()
         }
     }
 
+    //  Defintion:
     trait ExampleDrop {
         fn drop(&mut self);
     }
@@ -128,6 +138,7 @@ fn example_clone()
 
     //  'clone_from()' permits optimisations that may not be possible with 'clone'
 
+    //  Defintion:
     trait ExampleClone: Sized {
         fn clone(&self) -> Self;
         fn clone_from(&mut self, source: &Self) {
@@ -176,6 +187,7 @@ fn example_Deref_DerefMut()
     //  The dereferencing operators <are/include> '*' / '.'
     //  We can specify how these operate through the traits 'std::ops::Deref' / 'std::ops::DerefMut'
 
+    //  Definition:
     trait ExampleDeref {
         type Target: ?Sized;
         fn deref(&self) -> &Self::Target;
@@ -208,7 +220,7 @@ fn example_Deref_DerefMut()
     let mut s = Selector { elements: vec!['x','y','z',], current: 2 };
     assert_eq!(*s, 'z');
     *s = 'w';
-    assert_eq!(s.elements, ['x','y','z']);
+    assert_eq!(s.elements, ['x','y','w']);
 
     //  deref coercion:
     assert!(s.is_alphabetic());
@@ -234,6 +246,7 @@ fn example_default()
     use std::default::Default;
     use std::collections::HashSet;
 
+    //  Definition:
     trait ExampleDefault {
         fn default() -> Self;
     }
@@ -263,7 +276,160 @@ fn example_default()
 
 fn example_AsRef_AsMut()
 {
+    use std::fs::File;
+    use std::path::Path;
+    use std::io;
+
+    //  When a type implements AsRef<T>, then &T can be borrowed from it efficently
+    //  (same for AsMut<T> and &mut T)
+
+    //  Definition:
+    trait ExampleAsRef<T: ?Sized> {
+        fn as_ref(&self) -> &T;
+    }
+    trait ExampleAsMut<T: ?Sized> {
+        fn as_mut(&mut self) -> &mut T;
+    }
+
+    //  AsRef allows functions to be more flexible in the argument types they accept
+    fn ExampleOpen<P: AsRef<Path>>(path: P) -> Result<File,io::Error> { 
+        File::open(path)
+    }
+    //  (anything that implements AsRef<Path> (which includes String and str))
+    let p: &Path = "/tmp/abc.txt".as_ref();
+    println!("p=({:?})", p);
+
+    //  If, for any types T and U, if T implements AsRef<U>, then so does &T
+
+    //  String provides AsRef<u8>, but not AsMut<u8> (as there is no way to guarantee invalid characters aren't written)
+
+    //  Avoid defining an 'AsFoo' trait when 'AsRef<Foo>' is adequate
+
+    fn RecieveBytes<T: AsRef<[u8]>>(b: T) {
+        let x: &[u8] = b.as_ref();
+        println!("x=({:?})", x);
+    }
+    let b1 = b"abc";
+    let b2: Vec<u8> = vec![1,2,3];
+    RecieveBytes(b1);
+    RecieveBytes(b2);
+
     println!("example_AsRef_AsMut, DONE");
+}
+
+fn example_Borrow_BorrowMut()
+{
+    //  When a type implements 'std::borrow:Borrow', then its borrow method efficently borrows &T from it
+    //  A type should only implement Borrow<T> when &T hashes/compares the same way as it
+    //  <(Rust *doesn't* enforce this)>
+
+    //  Every type T automatically implements Borrow<T>
+
+    //  String implements Borrow<&str>, but not Borrow<[u8]> or Borrow<Path>
+    //  (since only &str has the same hashing/comparison behaviour as String)
+
+    //  Definition:
+    trait ExampleBorrow<T: ?Sized> {
+        fn borrow(&self) -> &T;
+    }
+    trait ExampleBorrowMut<T: ?Sized> {
+        fn borrow_mut(&mut self) -> &mut T;
+    }
+
+    //  HashMap allows type Q, from which K can be borrowed, to be used as a key
+    //impl ExampleHashMap<K,V>
+    //    where K: Eq + Hash 
+    //{
+    //    fn get<Q: ?Sized>(&self, key: &Q) -> Option<&V>
+    //        where K: Borrow<Q>
+    //    {
+    //    }
+    //}
+
+    //  All standard library types use Borrow to decide which types can be passed to their lookup functions
+    //      Vec<T> and [T: N] implement Borrow<[T]>
+    //      String implements Borrow<str>
+    //      <>
+
+    println!("example_Borrow_BorrowMut, DONE");
+}
+
+
+fn example_From_Into()
+{
+    //  'std::convert::From' and 'std::convert::Into' represent conversions that consume one a value of one type and return a value of another 
+    //  This conversion may or may not be efficent: because they take ownership of the origional variable, that variable can be used to create the converted type.
+    //  (they are used only for conversions that cannot fail (those should return a Result type))
+
+    //  Every type T automatically implements Into<T> and From<T>
+
+    //  Definition:
+    trait ExampleInto<T>: Sized {
+        fn into(self) -> T;
+    }
+    trait ExampleFrom<T>: Sized {
+        fn from(val: T) -> Self;
+    }
+
+    //  'Intro' is used to make functions more flexible in the types they accept
+    use std::net::Ipv4Addr;
+    fn ping<T>(address: T) -> std::io::Result<bool>
+        where T: Into<Ipv4Addr> 
+    {
+        let ipv4 = address.into();      //  T only supports one Into<> type -> result is unambiguous
+        println!("ping ipv4=({})", ipv4);
+        Ok(true)
+    }
+    ping( Ipv4Addr::new(66,146,219,98) );
+    ping( [66,146,219,98] );
+    ping( 0xd076eb94_u32 );
+
+    let addr1 = Ipv4Addr::from( [66,146,219,98] );
+
+    struct Foo { a: i32, };
+    impl From<i32> for Foo {
+        fn from(a: i32) -> Self {
+            Foo { a }
+        }
+    }
+
+    //  Single argument constructors should be written as implementations of From<>
+    let f1 = Foo::from(53);
+
+    //  <(implementing From<T> also provides To<T>)>
+    let f2: Foo = 53.into();
+
+    println!("example_From_Into, DONE");
+}
+
+
+fn example_ToOwned()
+{
+    use std::borrow::Borrow;
+
+    //  'std::clone::Clone' by definition returns T when invoked on &T
+    //  'std::borrow::ToOwned' provides a similar conversion, but allows the return type to be anything that can be Borrowed from T
+    //  ('ToOwned' is a generalization of 'Clone' to borrowed data)
+
+    //  Definition:
+    trait ExampleToOwned {
+        type Owned: Borrow<Self>;
+        fn to_owned(&self) -> Self::Owned;
+    }
+
+    let a1: &[i32] = &[1,2,3,4];
+    let v1: Vec<i32> = a1.to_owned();
+
+    let s1: &str = "asdf";
+    let S1: String = s1.to_owned();
+
+    println!("example_ToOwned, DONE");
+}
+
+
+fn example_Cow_Borrow_ToOwned_And_Ownership()
+{
+    println!("example_Cow_Borrow_ToOwned_And_Ownership, DONE");
 }
 
 
@@ -276,5 +442,9 @@ fn main()
     example_Deref_DerefMut();
     example_default();
     example_AsRef_AsMut();
+    example_Borrow_BorrowMut();
+    example_From_Into();
+    example_ToOwned();
+    example_Cow_Borrow_ToOwned_And_Ownership();
 }
 
