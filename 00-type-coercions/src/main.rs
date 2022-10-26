@@ -12,7 +12,7 @@
 //  Ongoing: 2022-10-21T02:51:50AEDT (an example of implict dereferencing: 'println!("x=({})", &x)'?)
 //  }}}
 
-//  LINK: https://www.possiblerust.com/guide/what-can-coerce-and-where-in-rust
+//  LINK: https://www.possiblerust.com/guide/what-can-coerce-and-where-in-rust 
 
 //  From/Into provide infallible conversions
 //  (TryFrom/TryInto are the fallible equivalents)
@@ -34,6 +34,10 @@
 
 //  Type coercions are implicit type conversions
 
+
+//  LINK: https://doc.rust-lang.org/reference/type-coercions.html
+//  {{{
+//  }}}
 
 fn example_reference_downgrade_coercions()
 {
@@ -82,10 +86,11 @@ fn example_reference_downgrade_coercions()
     //  <(specific example: 9 downgrading mut refs to shared refs is safe)>
     //  LINK: https://github.com/pretzelhammer/rust-blog/blob/master/posts/common-rust-lifetime-misconceptions.md#9-downgrading-mut-refs-to-shared-refs-is-safe
     //  {{{
-    //  }}}
+    //  <>
 
-    //  LINK: https://doc.rust-lang.org/reference/type-coercions.html
-    //  {{{
+    //  key takeaways:
+    //  try not to re-borrow mut refs as shared refs, or you're gonna have a bad time
+    //  re-borrowing a mut ref doesn't end its lifetime, even if the ref is dropped
     //  }}}
 
     println!("example_reference_downgrade_coercions, DONE");
@@ -129,7 +134,7 @@ fn example_deref_coercisions()
 
 fn example_raw_pointer_coercions()
 {
-    //  Raw pointer '*mut T' be be coerced to '*const T'
+    //  Raw pointer '*mut T' may be coerced to '*const T'
     //  <>
 
     //  <(converting pointers and safety)>
@@ -138,6 +143,20 @@ fn example_raw_pointer_coercions()
     //  <(can we guess - don't cast away const (unless you really have to)?)>
     //  <(Casting away const of pointers can be necessary when working with C-APIs)>
     //  <(casting away const of a pointer is undefined if the origional underlying pointer is not mutable)>
+
+    #[derive(Debug)]
+    struct PtrHandle { ptr: *const i32, };
+
+    let mut x = 5;
+
+    //  <(use 'as' to cast reference to pointer)>
+    let px = &mut x as *mut i32;
+
+    //  '*mut i32' is coerced to '*const i32'
+    let h = PtrHandle { ptr: px };
+
+    println!("px=({:?})", px);
+    println!("h=({:?})", h);
 
     println!("example_raw_pointer_coercions, DONE");
 }
