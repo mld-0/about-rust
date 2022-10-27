@@ -210,6 +210,7 @@ fn example_function_and_closure_types()
     println!("at_risk=({})", at_risk);
 
     //  Closures do not have the same type as functions
+    //  (closures coerce to function pointers if and only if they do not capture any variables from their environment)
     //  <(book has example below not work)>
     let at_risk_ii = count_selected_cities(&cities, |city| city.monster_attack_risk > 0);
     assert_eq!(at_risk, at_risk_ii);
