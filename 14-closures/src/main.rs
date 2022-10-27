@@ -21,13 +21,106 @@
 //  Ongoing: 2022-10-27T01:46:16AEDT '|_|' as lambda parameter
 //  Ongoing: 2022-10-27T01:56:58AEDT how '|_| get_form_response()' and '|req| get_gcd_response(req)' have different types (both recieve '&Request' and return 'Response' (why aren't they both 'Fn(&Request) -> Response' (why do we have to box them))
 //  Ongoing: 2022-10-27T01:57:39AEDT '|req| get_gcd_response(req)' (example of passing to lambda a ref using by-val syntax) (which we ruled out <earlier>)
+//  Ongoing: 2022-10-27T16:25:39AEDT A closure borrows a shared reference to any variable it uses (is the variable in the closure effectively as reference?)
+//  Ongoing: 2022-10-27T16:26:30AEDT <(Rust calls them closures, not references, because closures are about capturing variables)>
+//  Ongoing: 2022-10-27T16:29:37AEDT 'increment_x' can be declared as non-mut, but cannot be called unless it is declared mut ... (when must / what does it mean for a closure be mutable)
+//  Ongoing: 2022-10-27T16:41:43AEDT closures coerce to function pointers if and only if they do not capture any variables from their environment -> (meaning no mutable references or no references?)
 //  }}}
 
 //  Continue: 2022-10-27T00:45:29AEDT Rules of capturing variables (by-val/by-ref) but clear this time
 
+//  LINK: https://medium.com/coding-rust/best-explanation-of-closure-in-rust-2b20210eba53
+//  {{{
+fn about_regular_closures()
+{
+    //  closures: Rust allows us to create anonymous functions (lambdas)
+    let add_one = |x| { 1 + x };
+    assert_eq!(add_one(5), 6);
+
+    //  Syntax:
+    let add_one = |x: i32| -> i32 { 1 + x };
+    fn  add_one   (x: i32) -> i32 { 1 + x };
+
+    //  Like functions, closures infer their argument type(s)
+    //  Unlike functions, closures infer their return type
+
+    //  A closure has access to variables in the scope where it is defined
+    //  The closure borrows a shared reference to any variable it uses
+    let mut x: i32 = 5;
+    let printer = || { println!("x=({})", x); };
+    //x = 7;                        //  error, 'x' is borrowed, cannot assign to it
+    printer();
+
+    //  <(The closure borrows a mutable reference to any variable it modifies?)>
+    //  note: original 'x' still exists inside 'printer()', new 'x' shadows original outside closure
+    let mut x: i32 = 5;
+    let mut increment_x = || { x += 1; };
+    //x = 4;                        //  error, 'x' is borrowed mutably, cannot assign to it
+    //assert!(x == 5);              //  error, 'x' is borrowed mutable, cannot borrow shared reference
+    increment_x();
+    println!("x=({})", x);
+
+    //  A non-move closure can't be freely moved outside its original scope (it contains references to local variables)
+    //  (they are <generally> not suitable to be returned)
+
+    println!("best_explanation_of_closure, DONE");
+}
+
+fn about_moving_closures()
+{
+    //  A moving closure always takes ownership of all variables it uses
+    //      move || { ... }
+
+    //  Moving closures are useful for concurrency
+
+    println!("about_moving_closures, DONE");
+}
+
+fn about_closures_as_arguments()
+{
+    //  Closures are most useful as arguments to functions
+    fn double_result<F>(x: i32, f: F) -> i32 
+        where F: Fn(i32) -> i32
+    {
+        f(x) + f(x)
+    }
+    let square = |x: i32| { x * x };
+    assert_eq!(50, double_result(5, square));
+    assert_eq!(50, double_result(5, |x| { x * x }));
+
+    //  <(functions and closures are different types)>
+
+    //  A named function can be used wherever the equivalent closure is accepted
+    fn square_f(x: i32) -> i32 { x * x };
+    assert_eq!(50, double_result(5, square_f));
+
+    //  Each closure has its own unique type - the definition of the closure is part of its type.
+    //  (two closures with the same parameter types and return types do not have the same type).
+    fn composite<F,G>(x: i64, f: F, g: G) -> i64 
+        where F: Fn(i64) -> i64,
+              G: Fn(i64) -> i64,
+    {
+        g(f(x))
+    }
+    assert_eq!(17, composite(5, |n| { n * 2 }, |n| { n + 7 }));
+
+    //  <(closures coerce to function pointers if and only if they do not capture any variables from their environment)>
+
+    println!("about_closures_as_arguments, DONE");
+}
+
+//  Closures are syntactic sugar for a struct of variables which implements one of 'Fn' / 'FnMut' / 'FnOnce'
+
+//  }}}
+
+//  LINK: https://doc.rust-lang.org/book/ch13-01-closures.html
+//  {{{
+//  }}}
+
+//  Closure type is determined by what closure does with captured values (not how they are captured)
 //  'Fn': closures can be called multiple times without restriction. <(This includes all 'fn' functions)>
-//  'FnMut': closures that can be called multiple times if declared mutable (<capture and> modify a mutable <value/reference>)
-//  'FnOnce': closures that can be called once (if the caller owns the closure)
+//  'FnMut': closures that can be called multiple times if declared mutable (can mutate environment)
+//  'FnOnce': closures that can be called once (variables owned by closure can be moved out of closure)
 
 use std::fmt;
 use std::collections::HashMap;
@@ -161,7 +254,7 @@ fn example_capturing_variables()
     }
     //  <(usage of 'start_sort_by_row_thread')>
 
-    //  Closures that attempt to move copyable types perform a copy instead
+    //  <(Closures that attempt to move copyable types perform a copy instead?)>
 
     println!("example_capturing_variables, DONE");
 }
@@ -378,13 +471,19 @@ fn example_closure_effective_use()
     //  Model-View-Controller (MVC) is a design pattern which does not play well with Rust's ownership model
     //  (Rust does not permit reference cycles - its radical wager is that good alternatives exist)
 
-    //  <(Relevence to closures?)>
+    //  <(Relevance to closures?)>
+
+
 
     println!("example_closure_effective_use, DONE");
 }
 
 fn main() 
 {
+    about_regular_closures();
+    about_moving_closures();
+    about_closures_as_arguments();
+
     example_closures_into();
     example_capturing_variables();
     example_function_and_closure_types();
