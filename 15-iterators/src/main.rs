@@ -16,12 +16,16 @@
 //  Ongoing: 2022-10-28T00:05:51AEDT given an iterator that has taken ownership of a container by-val (can we get the container back?) (what about after iterating over container by-val?)
 //  Ongoing: 2022-10-28T08:48:03AEDT HashMap, no .items() (k,v) iterator?
 //  Ongoing: 2022-10-28T11:16:57AEDT the 'major_cities' example is hideously ugly (is there / create a macro to create a vector of Strings (without such '.iter().map(|x| x.to_string()).collect::<Vec<String>>()' nonsense?)) [...] 'vec_of_strings' - a beautiful solution
+//  Ongoing: 2022-10-29T01:06:57AEDT equality between Vector and array (in 'assert_eq' and outside it)
+//  Ongoing: 2022-10-29T01:27:39AEDT a bigger challenge 'vec_of_strings![("going","once"), ("going","twice"), ("going","chicken soup with rice")]'
 //  }}}
 use std::iter::IntoIterator;
 use std::iter::FromIterator;
 use std::str::FromStr;
 use std::collections::HashMap;
+
 use std::iter::Peekable;
+use std::iter::repeat;
 
 macro_rules! vec_of_strings {
     ($($x:expr),*) => (vec![$($x.to_string()),*]);
@@ -62,6 +66,7 @@ macro_rules! vec_of_strings {
 //      zip(u)                          combine two iterators
 //      unzip()                         seperate iterators combined with 'zip'
 //      scan(init,f)                    Like map, (but also accumulates like 'fold'), can terminate sequence early
+//      std::iter::repeat(v)
 
 //  Traits:
 //      std::iter::Iterator         implemented by iterator type
@@ -460,20 +465,69 @@ fn example_iterator_adaptors()
     assert_eq!(flaky.next(), None);
     assert_eq!(flaky.next(), None);
 
-    //  inspect(<>)
-    //  <>
+    //  inspect(f)
+    //  Used for debugging, applies closure 'f' to shared reference to each item, and passes it through
+    let uc: String = "große".chars()
+        .inspect(|c| println!("before: {:?}", c))
+        .flat_map(|c| c.to_uppercase())
+        .inspect(|c| println!("after: {:?}", c))
+        .collect();
+    assert_eq!(uc, "GROSSE");
 
-    //  chain(<>)
-    //  <>
+    //  i1.chain(i2)
+    //  appends on iterator to another
 
-    //  enumerate(<>)
-    //  <>
+    //  <(Definition:)>
+    //fn Eg_chain<U>(self, other: U) -> Some(Iterator<Item=Self::Item>>)
+    //    where Self: Sized, 
+    //          U: IntoIterator<Item=Self::Item>;
 
-    //  zip(<>)
-    //  <>
+    let v: Vec<i32> = (1..=4).chain(vec![20,30,40]).collect();
+    assert_eq!(v, [1,2,3,4,20,30,40]);
+
+    //  A chain iterator is reverseable if both its underlying iterators are
+    let v: Vec<i32> = (1..=4).chain(vec![20,30,40]).rev().collect();
+    assert_eq!(v, [40,30,20,4,3,2,1]);
+
+    let cols: usize = 5;
+    let rows: usize = 5;
+    let mut pixels: Vec<u8> = (0..(cols*rows)).map(|x| (x/10) as u8).collect();
+    let threads = 2;
+    let band_rows = rows / threads + 1;
+    let bands: Vec<&mut [u8]> = pixels.chunks_mut(band_rows * cols).collect();
+
+    //  enumerate()
+    //  Attaches a running index to a sequence
+    //  Given 'A,B,C' yields '(0,A),(1,B),(2,C)'
+    //  (It returns a tuple, with the count being a usize)
+    for (i,band) in bands.iter().enumerate() {
+        println!("i=({}), band=({:?})", i, band);
+    }
+
+    //  i1.zip(i2)
+    //  combines two iterators, producing tuples with an element from each
+    //  (ends when shorter iterator ends)
+    let v: Vec<_> = (0..).zip("ABCD".chars()).collect();
+    assert_eq!(v, vec![(0,'A'),(1,'B'),(2,'C'),(3,'D')]);
+
+    let endings = vec!["once", "twice", "chicken soup with rice"];
+    let rhyme: Vec<_> = repeat("going").zip(endings).collect();
+    assert_eq!(rhyme, vec![("going","once"), ("going","twice"), ("going","chicken soup with rice")]);
+
+    let message = "To: jimb\r\nFrom: id\r\n\r\nOooooh, donuts!!\r\n";
+    let mut lines = message.lines();
 
     //  by_ref()
-    //  <>
+    //  Borrows a mutable reference to the iterator
+    //  Allows adaptors to be used on iterators without consuming them
+    for h in lines.by_ref().take_while(|x| !x.is_empty()) {
+        print!("{}, ", h);
+    }
+    println!();
+    for h in lines {
+        print!("{}, ", h);
+    }
+    println!();
 
     //  cloned()
     //  <>
