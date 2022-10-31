@@ -22,7 +22,16 @@
 //  Ongoing: 2022-10-31T20:24:47AEDT support for clone, (by-reference vs by-value (given 'cloned()' only supports iterators returning references))
 //  Ongoing: 2022-10-31T20:48:50AEDT max/min require 'std::cmp::Ord' (not <'std::cmp::PartialOrd'>)(?) [...] (this is explicitly a decision to exclude floats, with their ambigiously ordered NaNs)
 //  Ongoing: 2022-10-31T20:56:24AEDT 'max_by_key_by()' function?
+//  Ongoing: 2022-10-31T23:43:59AEDT can rposition (reverse) a bytestring (but not a &str string)
+//  Ongoing: 2022-10-31T23:45:44AEDT 'position' (example) closure is by-val, 'rposition' (example) closure is by-ref
+//  Ongoing: 2022-11-01T00:02:06AEDT 'fold' example 'pangram' (works the same with closure <paramater/argument> 'w' passed by-val/by-ref) [...] (learn how String/str (and references) work)
+//  Ongoing: 2022-11-01T00:55:28AEDT a single example function for each adaptor function(?)
+//  Ongoing: 2022-11-01T01:02:24AEDT (are?) IntoIter / IntoIterable both (different) things?
+//  Ongoing: 2022-11-01T01:03:46AEDT 'extend(&[...])' vs 'extend([...])'(?)
 //  }}}
+
+//  Continue: cleanup 'Iterator related methods' split into iterator-adapters / consuming-iterators / <other-categories> (and complete)
+
 use std::iter::IntoIterator;
 use std::iter::DoubleEndedIterator;
 use std::iter::FromIterator;
@@ -75,11 +84,13 @@ macro_rules! vec_of_strings {
 //      std::iter::empty()              Returns None immediately
 //      std::iter::once(v)              Produces 'v', then None
 //      std::iter::repeat(v)            Repeat given value forever
+//      <more>
 
 //  Traits:
 //      std::iter::Iterator         implemented by iterator type
 //      std::iter::IntoIterator     implemented by containers that have iterator types
-//      std::iter::FromIterator     <>
+//      std::iter::FromIterator     implemented by containers that can be created from iterators
+//      <more>
 
 //  <(Most iterators are Sized)>
 
@@ -316,8 +327,11 @@ fn example_standard_library_iterators()
 
 fn example_iterator_adaptors()
 {
-    //  map / filter / filter_map / flat_map / scan / take / take_while / skip / skip_while
-    //  peekable / fuse / rev / next / next_back / 
+    //  <(organize/categorize?)>
+    //  Method for creating one iterator from another
+    //      map / filter / filter_map / flat_map / scan / take / take_while / skip / skip_while
+    //      peekable / fuse / rev / next / next_back / inspect / chain / enumerate / zip 
+    //      by_ref / cloned / cycle / 
 
     //  iterator adapters are zero overhead abstractions
 
@@ -633,8 +647,13 @@ fn example_consuming_iterators()
     use std::io::prelude::*;
     use std::cmp::{PartialOrd,Ordering};
 
+    //  <(organize/categorize?)>
     //  Methods for consuming iterators
     //  (recall that iterators are not executed until they are consumed)
+    //      count / sum / product / max / min / max_by / min_by / max_by_key / min_by_key 
+    //      any / all / position / rposition / fold / nth last / find / partition
+    //      lt / le / gt / ge / eq / ne / cmp / partial_cmp
+    //      collect / from_iter / extend 
 
     //  'count()'
     //  Draws from iterator until it returns None, returning the number of non-None elements
@@ -703,7 +722,111 @@ fn example_consuming_iterators()
     assert!(!id.chars().all(char::is_uppercase));
 
 
+    //  'std::iter::ExactSizeIterator'
+    //  <(an iterator with a known number of items)>
+    //  <(Definition:)>
+    pub trait Eg_ExactSizeIterator: Iterator {
+        fn len(&self) -> usize;
+        fn is_empty(&self) -> bool;
+    }
 
+
+    //  'position(p)' / 'rposition(p)'
+    //  Apply closure 'p' to each item, returning the index of the first item for which the result is True
+    //  (rposition searches from the right (although result index is from the left))
+    let t = "Xerxes";
+    assert_eq!(t.chars().position(|x| x == 'e'), Some(1));
+    assert_eq!(t.chars().position(|x| x == 'X'), Some(0));
+    assert_eq!(t.chars().position(|x| x == 'z'), None);
+
+    //  rposition requires a reversible and exactsize iterator
+    let b = b"Xerxes";
+    assert_eq!(b.iter().rposition(|&x| x == b'e'), Some(4));
+    assert_eq!(b.iter().rposition(|&x| x == b'X'), Some(0));
+
+
+    //  'fold(init, f)'
+    //  Applys 'f' to 'init' and each item to produce a single final value
+    let a = [5,6,7,8,9,10];
+    assert_eq!(a.iter().fold(0, |x, _| x+1), 6);                                    //  count
+    assert_eq!(a.iter().fold(0, |x, i| x+i), 45);                                   //  sum
+    assert_eq!(a.iter().fold(1, |x, i| x*i), 151200);                               //  product
+    assert_eq!(a.iter().fold(i32::min_value(), |m, &i| std::cmp::max(m,i)), 10);    //  max
+
+    let a = ["Pack ", "my ", "box ", "with ", "five ", "dozen ", "liquor ", "jugs"];
+    //  (Accumulators are moved into/out-of closure - so fold can be used with non-copy types)
+    let pangram = a.iter().fold(String::new(), |mut x, &w| { x.push_str(w); x});
+    assert_eq!(pangram, "Pack my box with five dozen liquor jugs");
+
+    //  <(Definition)>
+    //fn Eg_fold<A,F>(self, init: A, f: F) -> A
+    //    where Self: Sized,
+    //          F: FnMut(A, Self::Item) -> A;
+
+
+    //  'nth(n)'
+    //  Returns the n-th element of the iterator (0-indexed) (returned item, and items before it, are consumed)
+    //  (doesn't take ownership of iterator)
+    //  ('.nth(0)' is equivalent to '.next()')
+    let mut s = (0..=9).map(|x| x * x);
+    assert_eq!(s.nth(4), Some(16));
+    assert_eq!(s.nth(0), Some(25));
+    assert_eq!(s.nth(6), None);
+    assert_eq!(s.nth(0), None);
+
+    //  <(Definition)>
+    //fn Eg_nth(&mut self, n: usize) -> Option<Self::Item>
+    //    where Self: Sized;
+
+
+    //  'last()'
+    //  Consumes items until iterator returns None, returning last non-None item
+    //  (consumes all iterator items (even if iterator is reverseable))
+    let mut s = (0..=9).map(|x| x * x);
+    assert_eq!(s.last(), Some(81));
+
+    //  (to get the last item of a reverseable iterator without consuming all items:)
+    let mut s = (0..=9).map(|x| x * x);
+    assert_eq!(s.rev().next(), Some(81));
+
+    //  <(Definition:)>
+    //fn Eg_last(self) -> Option<Self::Item>;
+
+
+
+    //  'find()'
+    //  Given a closure, return the first item for which the closure is true
+    //  (consumes iterator items up to the and including the returned item)
+    let mut populations = HashMap::new();
+    populations.insert("Portland", 583_776);
+    populations.insert("Fossil", 449);
+    populations.insert("Greenhorn", 2);
+    populations.insert("Boring", 7_762);
+    populations.insert("The Dalles", 15_340);
+    assert_eq!(populations.iter().find(|&(_k, &v)| v > 1_000_000), None);
+    assert_eq!(populations.iter().find(|&(_k, &v)| v > 500_000), Some((&"Portland", &583_776)));
+
+    //  <(Definition:)>
+    //fn Eg_find<P>(&mut self, predicate: P) -> Option<Self::Item>
+    //    where Self: Sized,
+    //          P: FnMut(&Self::Item) -> bool;
+
+
+    //  'partition(f)'
+    //  Divide the items of an iterator among two collections, according to a closure
+    //  (Requires 'std::default::Default' and 'std::Default::Extend')
+    let things = ["doorknob", "mushroom", "noodle", "giraffe", "grapefruit"];
+    let (living, nonliving): (Vec<&str>, _) = things.iter().partition(|x| x.as_bytes()[0] & 1 != 0);
+    assert_eq!(living, ["mushroom", "giraffe", "grapefruit"]);
+    assert_eq!(nonliving, ["doorknob", "noodle"]);
+
+    //  <(partition builds two containers, rather than two iterators, as splitting a single iterator into two violates Rust's rules about multiple mutable references to the same item)>
+
+    //  <(Definition:)>
+    //fn partition<B,F>(self, f: F) -> (B, B)
+    //    where Self: Sized,
+    //          B: Default + Extend<Self::Item>,
+    //          F: FnMut(&Self::Item) -> bool;
 
     println!("example_consuming_iterators, DONE");
 }
@@ -730,6 +853,57 @@ fn example_comparing_item_sequences()
     println!("example_comparing_item_sequences");
 }
 
+fn example_buildingCollections_collect_FromIter()
+{
+    //  'collect()'
+    //  (Builds a standard library collection from the items of an iterator)
+
+    //  (must provide the type of the resulting container):
+    let a: Vec<i64> = (0..=10).collect();
+    let a = (0..=10).collect::<Vec<i64>>();
+
+    //  <(use something other than 'std::env::args()')>
+    use std::collections::{HashSet,BTreeSet,LinkedList,HashMap,BTreeMap};
+    //let args: HashSet<String> = std::env::args().collect();
+    //let args: BTreeSet<String> = std::env::args().collect();
+    //let args: LinkedList<String> = std::env::args().collect();
+    //let args: HashMap<String,usize> = std::env::args().zip(0..).collect();
+    //let args: BTreeMap<String,usize> = std::env::args().zip(0..).collect();
+
+    //  Implemented by trait 'std::iter::FromIterator'
+    //  <(Definition:)>
+    trait Eg_FromIterator<A>: Sized {
+        fn from_iter<T: IntoIterator<Item=A>>(iter: T) -> Self;
+    }
+    //  <('collect()' (default version) is implemented in terms of 'from_iter()'?)>
+
+    //  collect can use information like 'Iterator::size_hint()' to be more efficent
+    //  (eg: preallocating vectors)>
+
+    println!("example_buildingCollections_collect_FromIter");
+}
+
+fn example_Extend()
+{
+    //  'c.extend(v)'
+    //  Add items from iterable 'v' to collection 'c'
+    let mut v: Vec<i32> = (0..5).map(|x| 1 << x).collect();
+    v.extend(&[31,57,99,163]);
+    v.extend([3,6,9,7]);
+    assert_eq!(v, [1,2,4,8,16,31,57,99,163,3,6,9,7]);
+
+    //  Implemented by trait 'std::iter::Extend' 
+    //  <(Definition:)>
+    trait Eg_Extend<A> {
+        fn extend<T>(&mut self, iter: T)
+            where T: IntoIterator<Item=A>;
+    }
+
+    //  (many implementations of 'from_iter' are in terms of 'extend')
+
+    println!("example_Extend");
+}
+
 fn example_custom_iterators()
 {
     println!("example_custom_iterators, DONE");
@@ -746,6 +920,8 @@ fn main()
     example_DoubleEndedIterator();
     example_consuming_iterators();
     example_comparing_item_sequences();
+    example_buildingCollections_collect_FromIter();
+    example_Extend();
     example_custom_iterators();
 }
 
