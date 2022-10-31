@@ -18,14 +18,20 @@
 //  Ongoing: 2022-10-28T11:16:57AEDT the 'major_cities' example is hideously ugly (is there / create a macro to create a vector of Strings (without such '.iter().map(|x| x.to_string()).collect::<Vec<String>>()' nonsense?)) [...] 'vec_of_strings' - a beautiful solution
 //  Ongoing: 2022-10-29T01:06:57AEDT equality between Vector and array (in 'assert_eq' and outside it)
 //  Ongoing: 2022-10-29T01:27:39AEDT a bigger challenge 'vec_of_strings![("going","once"), ("going","twice"), ("going","chicken soup with rice")]'
+//  Ongoing: 2022-10-31T20:21:18AEDT 'cloned() takes an iterator that produces references' (it's not defined for an iterator returning values?)
+//  Ongoing: 2022-10-31T20:24:47AEDT support for clone, (by-reference vs by-value (given 'cloned()' only supports iterators returning references))
+//  Ongoing: 2022-10-31T20:48:50AEDT max/min require 'std::cmp::Ord' (not <'std::cmp::PartialOrd'>)(?) [...] (this is explicitly a decision to exclude floats, with their ambigiously ordered NaNs)
+//  Ongoing: 2022-10-31T20:56:24AEDT 'max_by_key_by()' function?
 //  }}}
 use std::iter::IntoIterator;
+use std::iter::DoubleEndedIterator;
 use std::iter::FromIterator;
 use std::str::FromStr;
 use std::collections::HashMap;
 
 use std::iter::Peekable;
 use std::iter::repeat;
+use std::iter::once;
 
 macro_rules! vec_of_strings {
     ($($x:expr),*) => (vec![$($x.to_string()),*]);
@@ -66,7 +72,9 @@ macro_rules! vec_of_strings {
 //      zip(u)                          combine two iterators
 //      unzip()                         seperate iterators combined with 'zip'
 //      scan(init,f)                    Like map, (but also accumulates like 'fold'), can terminate sequence early
-//      std::iter::repeat(v)
+//      std::iter::empty()              Returns None immediately
+//      std::iter::once(v)              Produces 'v', then None
+//      std::iter::repeat(v)            Repeat given value forever
 
 //  Traits:
 //      std::iter::Iterator         implemented by iterator type
@@ -332,6 +340,7 @@ fn example_iterator_adaptors()
     //  (note: this expresison has no output)
     ["earth", "water", "air", "fire"].iter().map(|x| println!("x=({})", x));
 
+
     //  'filter_map(f)' acts as a combination of filter and map
     //  'f' returns value as Some(value), or None to indicate value should be excluded
 
@@ -343,6 +352,7 @@ fn example_iterator_adaptors()
     let text = "1\nfrond .25 289\n3.1415 estuary\n";
     let v: Vec<f64> = text.split_whitespace().filter_map(|w| f64::from_str(w).ok()).collect();
     assert_eq!(v, vec![1.0,0.25,289.0,3.1415]);
+
 
     //  'flat_map(f)' allows 0, 1, or multiple values to be returned by 'f' for each item 
     //  (the resulting sequences are concatenated into a single iterator)
@@ -363,6 +373,7 @@ fn example_iterator_adaptors()
     let v = countries.iter().flat_map(|x| major_cities[x].clone()).collect::<Vec<String>>();
     assert_eq!(v, vec_of_strings!["Tokyo","Kyoto", "São Paulo", "Brasília", "Nairobi", "Mombasa"]);
 
+
     //  'scan(init, f)' 
     //  scan is like map, except is has a mutable initial value, can terminate the iterator early by returning None
     let v = (0..10).scan(0, |count,item| {
@@ -373,8 +384,10 @@ fn example_iterator_adaptors()
 
     //  <(String.lines() does not consume the String from which it is created)>
 
+
     //  'take(n)'
     //  Returns iterator with at most 'n' elements
+
 
     //  'take_while(p)'
     //  Returns iterator with elements until first p(item) == false
@@ -387,8 +400,10 @@ fn example_iterator_adaptors()
     let v = message.lines().take_while(|x| !x.is_empty()).map(|x| x.to_string()).collect::<Vec<String>>();
     println!("v=({:?})", v);
 
+
     //  'skip(n)'
     //  Return iterator with 'n' items from beginning removed
+
 
     //  'skip_while(p)'
     //  Return iterator with items before p(item) == <true/false> removed
@@ -407,6 +422,7 @@ fn example_iterator_adaptors()
     for arg in std::env::args().skip(1) {
         println!("arg=({:?})", arg);
     }
+
 
     //  'peekable()'
     //  A peekable iterator lets us peek at the next item without consuming it. 
@@ -439,6 +455,7 @@ fn example_iterator_adaptors()
 
     //  <(performance implications of making a stream peekable?)>
 
+
     //  'fuse()'
     //  Once an Iterator has returned None, the trait doesn't specify what it must do next time it is called.
     //  fuse returns an iterator that can only return None after first returning None
@@ -465,7 +482,8 @@ fn example_iterator_adaptors()
     assert_eq!(flaky.next(), None);
     assert_eq!(flaky.next(), None);
 
-    //  inspect(f)
+
+    //  'inspect(f)'
     //  Used for debugging, applies closure 'f' to shared reference to each item, and passes it through
     let uc: String = "große".chars()
         .inspect(|c| println!("before: {:?}", c))
@@ -474,7 +492,8 @@ fn example_iterator_adaptors()
         .collect();
     assert_eq!(uc, "GROSSE");
 
-    //  i1.chain(i2)
+
+    //  'i1.chain(i2)'
     //  appends on iterator to another
 
     //  <(Definition:)>
@@ -496,7 +515,8 @@ fn example_iterator_adaptors()
     let band_rows = rows / threads + 1;
     let bands: Vec<&mut [u8]> = pixels.chunks_mut(band_rows * cols).collect();
 
-    //  enumerate()
+
+    //  'enumerate()'
     //  Attaches a running index to a sequence
     //  Given 'A,B,C' yields '(0,A),(1,B),(2,C)'
     //  (It returns a tuple, with the count being a usize)
@@ -504,7 +524,8 @@ fn example_iterator_adaptors()
         println!("i=({}), band=({:?})", i, band);
     }
 
-    //  i1.zip(i2)
+
+    //  'i1.zip(i2)'
     //  combines two iterators, producing tuples with an element from each
     //  (ends when shorter iterator ends)
     let v: Vec<_> = (0..).zip("ABCD".chars()).collect();
@@ -517,7 +538,8 @@ fn example_iterator_adaptors()
     let message = "To: jimb\r\nFrom: id\r\n\r\nOooooh, donuts!!\r\n";
     let mut lines = message.lines();
 
-    //  by_ref()
+
+    //  'by_ref()'
     //  Borrows a mutable reference to the iterator
     //  Allows adaptors to be used on iterators without consuming them
     for h in lines.by_ref().take_while(|x| !x.is_empty()) {
@@ -529,11 +551,40 @@ fn example_iterator_adaptors()
     }
     println!();
 
-    //  cloned()
-    //  <>
 
-    //  cycle(<>)
-    //  <>
+    //  'cloned()'
+    //  Returns an iterator that produces values cloned from the references recieved
+    //  (not callable on iterator returning by-value)
+    //  (Referent type must implement Clone)
+    let a = ['1', '2', '3', '∞'];
+    assert_eq!(a.iter().next(), Some(&'1'));
+    assert_eq!(a.iter().cloned().next(), Some('1'));
+    //assert_eq!(a.into_iter().cloned().next(), Some('1'));         //  error, 'cloned' not available for by-val iter
+
+
+    //  'cycle()'
+    //  Returns an iterator that endlessly repeats the sequence produced by the underlying iterator
+    //  (Underlying iterator must implement Clone)
+    let dirs = ["North", "East", "South", "West"];
+    let mut spin = dirs.iter().cycle();
+    assert_eq!(spin.next(), Some(&"North"));
+    assert_eq!(spin.next(), Some(&"East"));
+    assert_eq!(spin.next(), Some(&"South"));
+    assert_eq!(spin.next(), Some(&"West"));
+    assert_eq!(spin.next(), Some(&"North"));
+    assert_eq!(spin.next(), Some(&"East"));
+    assert_eq!(spin.next(), Some(&"South"));
+    assert_eq!(spin.next(), Some(&"West"));
+
+    let fizzes = repeat("").take(2).chain(once("fizz")).cycle();
+    let buzzes = repeat("").take(4).chain(once("buzz")).cycle();
+    let fizzes_buzzes = fizzes.zip(buzzes);
+    let fizz_buzz = (1..100).zip(fizzes_buzzes)
+        .map(|x| match x {
+                 (i, ("", "")) => i.to_string(),
+                 (_, (fizz, buzz)) => format!("{}{}", fizz, buzz),
+            }).collect::<Vec<String>>();
+    println!("fizz_buzz=({:?})", fizz_buzz);
 
     println!("example_iterator_adaptors, DONE");
 }
@@ -541,14 +592,142 @@ fn example_iterator_adaptors()
 fn example_DoubleEndedIterator()
 {
     //  std::iter::DoubleEndedIterator
-    //  <>
+    //  An iterator that allows items to be taken from either end
+    //  <(<some/most> standard library ordered collections are double ended)>
+
+    //  <(Definition:)>
+    trait Eg_DoubleEndedIterator: Iterator {
+        fn next_back(&mut self) -> Option<Self::Item>;
+    }
+
+    let bee_parts = ["head", "thorax", "abdomen"];
+    let mut iter = bee_parts.iter();
+    assert_eq!(iter.next(), Some(&"head"));
+    assert_eq!(iter.next_back(), Some(&"abdomen"));
+    assert_eq!(iter.next(), Some(&"thorax"));
+    assert_eq!(iter.next_back(), None);
+    assert_eq!(iter.next(), None);
+
+    //  'rev()'
+    //  Reverse a double ended iterator
+
+    //  <(Definition:)>
+    //fn Eg_rev(self) -> Some(Iterator<Item=Self>) 
+    //    where Self: Sized + DoubleEndedIterator;
+
+    let meals = ["breakfast", "lunch", "dinner"];
+    let mut iter = meals.iter().rev();
+    assert_eq!(iter.next(), Some(&"dinner"));
+    assert_eq!(iter.next_back(), Some(&"breakfast"));
+    assert_eq!(iter.next(), Some(&"lunch"));
+    assert_eq!(iter.next_back(), None);
+    assert_eq!(iter.next(), None);
+
+    //  many adaptors, (including 'map()' and 'filter()') preserve reversibility
 
     println!("example_DoubleEndedIterator, DONE");
 }
 
 fn example_consuming_iterators()
 {
+    use std::io::prelude::*;
+    use std::cmp::{PartialOrd,Ordering};
+
+    //  Methods for consuming iterators
+    //  (recall that iterators are not executed until they are consumed)
+
+    //  'count()'
+    //  Draws from iterator until it returns None, returning the number of non-None elements
+    let c = (1..10).count();
+    println!("c=({})", c);
+
+
+    //  'sum()'
+    //  Sum iterators items
+    //  (implemented by 'std::iter::Sum')
+    fn triangle(n: u64) -> u64 { 
+        (1..=n).sum() 
+    }
+    assert_eq!(triangle(20), 210);
+
+
+    //  'product()'
+    //  Multiply iterators items
+    //  (implemented by 'std::iter::Product)
+    fn factorial(n: u64) -> u64 {
+        (1..=n).product()
+    }
+    assert_eq!(factorial(20), 2432902008176640000);
+
+
+    //  'max()' / 'min()'
+    //  Returns the max/min value produced by the iterator.
+    //  (Iterator's underlying type must implement 'std::cmp::Ord')
+    assert_eq!([-2, 0, 1, 0, -2, -5].iter().max(), Some(&1));
+    assert_eq!([-2, 0, 1, 0, -2, -5].iter().min(), Some(&-5));
+
+    //  Custom comparison function - will panic if given NaN
+    //  <(use of references-to-references?)>
+    fn Eg_cmp(l: &&f64, r: &&f64) -> Ordering { l.partial_cmp(r).unwrap() }
+
+
+    //  'max_by(f)' / 'min_by(f)'
+    //  Returns the max/min value produced by the iterator, as determied by comparison function 'f'
+    let numbers = [1.0,4.0,2.0,];
+    assert_eq!(numbers.iter().max_by(Eg_cmp), Some(&4.0));
+    assert_eq!(numbers.iter().min_by(Eg_cmp), Some(&1.0));
+
+
+    //  'max_by_key(f)' / 'min_by_key(f)'
+    //  Returns max/min value produced by 
+
+    //  <(Definition:)>
+    //fn Eg_min_by_key<B: Ord, F>(self f: F) -> Option<Self::Item>
+    //    where Self: Sized, 
+    //          F: FnMut(&Self::Item) -> B;
+
+    let mut populations = HashMap::new();
+    populations.insert("Portland", 583_776);
+    populations.insert("Fossil", 449);
+    populations.insert("Greenhorn", 2);
+    populations.insert("Boring", 7_762);
+    populations.insert("The Dalles", 15_340);
+    assert_eq!(populations.iter().max_by_key(|&(_k,v)| v), Some((&"Portland", &583_776)));
+    assert_eq!(populations.iter().min_by_key(|&(_k,v)| v), Some((&"Greenhorn", &2)));
+
+
+    //  'any(f)' / 'all(f)'
+    //  Apply a closure to the iterator, and return whether it returns true for any / all items
+    let id = "Iterator";
+    assert!(id.chars().any(char::is_uppercase));
+    assert!(!id.chars().all(char::is_uppercase));
+
+
+
+
     println!("example_consuming_iterators, DONE");
+}
+
+fn example_comparing_item_sequences()
+{
+    //  Use comparison operators ('<', '==', ect) to compare strings, vectors, and slices
+    //  (assuming their indervidual elements support these operators)
+
+    //  Iterators do not support these comparison operators, but they provide methods to do the same job:
+    //  'lt()' / 'le()' / 'gt()' / 'ge()'
+    //  'eq()' / 'ne()' 
+    //  'cmp()' / 'partial_cmp()'
+
+    let packed = "Helen of Troy";
+    let spaced = "Helen    of    Troy";
+    let obscure = "Helen of Sandusky";
+    assert!(packed.split_whitespace().eq(spaced.split_whitespace()));
+
+    //  <(Equivalent?)>
+    assert!(spaced < obscure);
+    assert!(spaced.chars().lt(obscure.chars()));
+
+    println!("example_comparing_item_sequences");
 }
 
 fn example_custom_iterators()
@@ -566,6 +745,7 @@ fn main()
     example_iterator_adaptors();
     example_DoubleEndedIterator();
     example_consuming_iterators();
+    example_comparing_item_sequences();
     example_custom_iterators();
 }
 
