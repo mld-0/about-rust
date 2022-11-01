@@ -28,16 +28,20 @@
 //  Ongoing: 2022-11-01T00:55:28AEDT a single example function for each adaptor function(?)
 //  Ongoing: 2022-11-01T01:02:24AEDT (are?) IntoIter / IntoIterable both (different) things?
 //  Ongoing: 2022-11-01T01:03:46AEDT 'extend(&[...])' vs 'extend([...])'(?)
+//  Ongoing: 2022-11-01T21:27:40AEDT (what rule says) iterating over a struct-literal requires that we place it in parentheses eg: 'for k in (Eg_I32Range { start: 0, end: 14 }) { }'
+//  Ongoing: 2022-11-01T21:29:43AEDT our calculation of pi with a loop (how to do the same) (using our custom iterator) with iterator adaptors
+//  Ongoing: 2022-11-01T22:08:44AEDT implementing 'iter()' for BinaryTree (we are doing so in a regular template-impl block (not by implementing a trait?) (what normally provides 'iter'?))
+//  Ongoing: 2022-11-01T22:26:32AEDT implementing 'BinaryTree' iterator -> our 'iter()' / 'into_iter()' functions do the same thing(?) <('into_iter()' should be by-value? (which we have not implemented?))>
 //  }}}
 
 //  Continue: cleanup 'Iterator related methods' split into iterator-adapters / consuming-iterators / <other-categories> (and complete)
+//  Continue: implementing an iterator, a more Rust-ian example (our example supports only iterating over references?)
 
 use std::iter::IntoIterator;
 use std::iter::DoubleEndedIterator;
-use std::iter::FromIterator;
 use std::str::FromStr;
 use std::collections::HashMap;
-
+use std::iter::FromIterator;
 use std::iter::Peekable;
 use std::iter::repeat;
 use std::iter::once;
@@ -84,15 +88,17 @@ macro_rules! vec_of_strings {
 //      std::iter::empty()              Returns None immediately
 //      std::iter::once(v)              Produces 'v', then None
 //      std::iter::repeat(v)            Repeat given value forever
-//      <more>
+//      <()>
 
 //  Traits:
 //      std::iter::Iterator         implemented by iterator type
 //      std::iter::IntoIterator     implemented by containers that have iterator types
 //      std::iter::FromIterator     implemented by containers that can be created from iterators
-//      <more>
+//      <()>
 
-//  <(Most iterators are Sized)>
+//  By implementing 'std::iter::Iterator', 'std::iter::IntoIterator' is automatically implemented
+
+//  <(Most(?) iterators are Sized)>
 
 fn example_iterator_intro()
 {
@@ -863,7 +869,7 @@ fn example_buildingCollections_collect_FromIter()
     let a = (0..=10).collect::<Vec<i64>>();
 
     //  <(use something other than 'std::env::args()')>
-    use std::collections::{HashSet,BTreeSet,LinkedList,HashMap,BTreeMap};
+    //use std::collections::{HashSet,BTreeSet,LinkedList,HashMap,BTreeMap};
     //let args: HashSet<String> = std::env::args().collect();
     //let args: BTreeSet<String> = std::env::args().collect();
     //let args: LinkedList<String> = std::env::args().collect();
@@ -906,6 +912,109 @@ fn example_Extend()
 
 fn example_custom_iterators()
 {
+    //  Iterator traits:
+    //      std::iter::Iterator         implemented by iterator type
+    //      std::iter::IntoIterator     implemented by containers that have iterator types
+    //      std::iter::FromIterator     implemented by containers that can be created from iterators
+
+    struct Eg_I32Range { start: i32, end: i32, }
+
+    impl std::iter::Iterator for Eg_I32Range {
+        type Item = i32;
+        fn next(&mut self) -> Option<i32> {
+            if self.start >= self.end {
+                None
+            } else {
+                let value = self.start;
+                self.start += 1;
+                Some(value)
+            }
+        }
+    }
+
+    //  <(By implementing 'Iterator', 'IntoIterator' is automatically implemented)>
+    //  (that is, implementing 'Iterator' is all that is required to loop over our type)
+    let mut iter = Eg_I32Range { start: 0, end: 14 };
+    let mut pi = 0.0;
+    let mut numerator = 1.0;
+    for k in iter { 
+        pi += numerator / (2*k + 1) as f64;
+        numerator /= -3.0;
+    }
+    pi *= f64::sqrt(12.0);
+    //  (IEEE 754 specifies this result exactly)
+    assert_eq!(pi as f32, std::f32::consts::PI);
+
+
+    enum BinaryTree<T> {
+        Empty,
+        NonEmpty(Box<TreeNode<T>>),
+    }
+    struct TreeNode<T> {
+        val: T, 
+        left: BinaryTree<T>, 
+        right: BinaryTree<T>,
+    }
+
+    //  Constructing an iterator that traverses BinaryTree requires us to keep a stack of our tree traverse
+    struct TreeIter<'a, T: 'a> {
+        unvisited: Vec<&'a TreeNode<T>>
+    }
+    impl<'a, T: 'a> TreeIter<'a, T> {
+        fn push_left_edge(&mut self, mut tree: &'a BinaryTree<T>) {
+            while let BinaryTree::NonEmpty(ref node) = *tree {
+                self.unvisited.push(node);
+                tree = &node.left;
+            }
+        }
+    }
+    impl<T> BinaryTree<T> {
+        fn iter(&self) -> TreeIter<T> {
+            let mut iter = TreeIter { unvisited: Vec::new() };
+            iter.push_left_edge(self);
+            iter
+        }
+    }
+    //  Required to iterate over reference to container
+    //  <(iterating over a container makes an implicit call to 'into_iter()')>
+    impl<'a, T: 'a> std::iter::IntoIterator for &'a BinaryTree<T> {
+        type Item = &'a T;
+        type IntoIter = TreeIter<'a, T>;
+        fn into_iter(self) -> Self::IntoIter {
+            self.iter()
+        }
+    }
+    impl<'a, T> Iterator for TreeIter<'a, T> {
+        type Item = &'a T;
+        fn next(&mut self) -> Option<&'a T> {
+            let node = match self.unvisited.pop() {
+                None => return None,
+                Some(n) => n,
+            };
+            self.push_left_edge(&node.right);
+            Some(&node.val)
+        }
+    }
+    fn make_node<T>(val: T, left: BinaryTree<T>, right: BinaryTree<T>) -> BinaryTree<T> {
+        BinaryTree::NonEmpty(Box::new(TreeNode { val, left, right }))
+    }
+
+    let subtree_l = make_node("abc", BinaryTree::Empty, BinaryTree::Empty);
+    let subtree_rl = make_node("hij", BinaryTree::Empty, BinaryTree::Empty);
+    let subtree_r = make_node("klm", subtree_rl, BinaryTree::Empty);
+    let tree = make_node("def", subtree_l, subtree_r);
+
+    let mut v = Vec::new();
+    for x in &tree { v.push(*x); }
+    //  or
+    //for x in tree.iter() { v.push(*x); }
+    //for x in tree.into_iter() { v.push(*x); }
+    println!("v=({:?})", v);
+    assert_eq!(v, ["abc", "def", "hij", "klm"]);
+
+    let v = tree.iter().map(|x| format!("mega-{}", x)).collect::<Vec<_>>();
+    assert_eq!(v, ["mega-abc", "mega-def", "mega-hij", "mega-klm"]);
+
     println!("example_custom_iterators, DONE");
 }
 
