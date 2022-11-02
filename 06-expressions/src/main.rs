@@ -99,7 +99,7 @@ fn example_if_and_match()
     }
 
     //  A match expression is a more flexible version of the switch statement
-    //  '_' matches everything, making it a default case (where is must be last)
+    //  '_' matches everything, making it a default case (it should be placed last)
     //  The compiler implements match as a jump table (making it more efficent than an extended if-statement)
     let code = 53;
     let msg = match code {
@@ -140,6 +140,7 @@ fn example_if_and_match()
 
     println!("example_if_and_match, DONE");
 }
+
 
 fn example_loops() 
 {
@@ -191,7 +192,8 @@ fn example_loops()
     //  Rust does not examine loop conditions, its flow analysis assumes that any condition can be either true or false
     //  for this reason, it provides the 'loop { block }' expression
 
-    //  Expressions that never finish (infinite loop, call to 'exit()') in a usual way have special type '!'
+    //  Expressions that never finish have special type '!'
+    //  <(not required?)>
     fn loop_forever() -> !  {
         loop {}
     }
@@ -277,6 +279,7 @@ fn example_reference_operators()
 {
     //  Address-of operators: '&' and '&mut'
     //  Dereference operator: '*'
+
     println!("example_reference_operators, DONE");
 }
 
@@ -359,6 +362,8 @@ fn example_closures()
     let is_even = |x: u64| -> bool { x % 2 == 0 };
 
     assert_eq!(is_even(4), true);
+
+    println!("example_closures, DONE");
 }
 
 
