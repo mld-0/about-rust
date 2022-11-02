@@ -120,9 +120,11 @@ fn example_assigning_references() {
     let mut r = &x;
     if flag { r = &y; }
     assert!(*r == x || *r == y);
+
     //  Compare references with 'std::ptr::eq()'
     assert!(std::ptr::eq(r, &x) || std::ptr::eq(r, &y));
     //assert!(r == &x || r == &y);      //  <(valid for references to primatives, not valid for references to objects?)>
+
     println!("example_assigning_references DONE");
 }
 
@@ -135,6 +137,7 @@ fn example_references_to_references() {
     let rrr: &&&Point = &rr;
     //assert!(&p == r);     //  <invalid?>
     assert_eq!(rrr.y, p.y);
+
     println!("example_references_to_references DONE");
 }
 
@@ -153,6 +156,7 @@ fn example_comparing_references()
     assert!(!std::ptr::eq(rx, ry));
     assert!(rrx == rry);
     assert!(!std::ptr::eq(rrx, rry));
+
     println!("example_comparing_references DONE");
 }
 
@@ -166,6 +170,7 @@ fn example_borrow_reference_anonymous_value()
 {
     let r = &factorial(6);
     assert_eq!(r + &1009, 1729);
+
     println!("example_borrow_reference_anonymous_value");
 }
 
@@ -212,6 +217,7 @@ fn example_reference_safety_receiving_parameters()
     //  Since we are assigning our parameter to a static variable, we must specify 'static as the parameter's lifetime
     fn assign_to_STASH(p: &'static i32) { unsafe { STASH = p; } }
 
+    //  mutable static variable can only be accessed in unsafe block
     unsafe { println!("STASH=({})", STASH); }
 
     //  invalid: 'x' does not live long enough to be passed to static reference
@@ -247,11 +253,13 @@ fn example_reference_safety_passing_parameters()
     println!("example_reference_safety_passing_parameters, DONE");
 }
 
+
 //  When a function takes a single reference as argument, and returns a single reference, it is assumed those two references must have the same lifetime.
 //  Equivalent:
 //      fn f(v: &[i32]) -> &i32 {}
 //      fn f<'a>(v: &'a [i32]) -> &'a i32 {}
 //  In Rust, when we receive a reference as argument and return a reference, the assumption is the returned reference points to something in the input (or possibly alternatively at a static value).
+
 
 fn example_reference_safety_returning_references() 
 {
