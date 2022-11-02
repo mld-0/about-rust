@@ -69,6 +69,7 @@ fn example_box_label() {
 //      vector<string> u = s;
 //  Each assignment creates a deep copy of the origional list. Assignment is expensive.
 
+
 //  The equivalent code is an error in Rust:
 fn example_list_assignment_move() {
     let s = vec!["udon".to_string(), "ramen".to_string(), "soba".to_string()];
@@ -76,13 +77,14 @@ fn example_list_assignment_move() {
     //let u = s;        // error, cannot assign from uninitialized variable
 }
 //  Use the '.clone()' method to copy a vector
-//  <(generally clone can be understood to be a deep copy - but not necessarily since custom types are free to implement clone)>
+//  <(generally clone can be understood to be a deep copy - but not necessarily since custom types are free to implement to implement clone)>
 fn example_list_assignment_copy() {
     let s = vec!["udon".to_string(), "ramen".to_string(), "soba".to_string()];
     let _t = s.clone();
     let _v = s.clone();
 }
 //  (Alternatively use '.copy()' for values than can safely be duplicated via memcpy)
+
 
 //  Initialization is providing a value for a variable as it comes into scope in a 'let' statement.
 //  When we assign to a variable that is already initialized, the prior value is dropped.
@@ -107,6 +109,7 @@ fn example_move_and_control_flow() {
     }
     //  x is now considered to be uninitialized
 }
+
 
 //  Rust does not permit elements to be moved out of the vector with assignment
 fn example_move_and_indexed_content() {
