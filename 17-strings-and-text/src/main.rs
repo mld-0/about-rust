@@ -7,7 +7,13 @@
 #![allow(non_camel_case_types)]
 //  Ongoings:
 //  {{{
+//  Ongoing: 2022-11-10T22:12:08AEDT String formatting example, printing 'insn' / 'lsb' / 'msb' produces YCM error message about (adding a feature to use) capturing (but it works as expected, without error) ... (how to check YCM is current / rebuild it periodically if it is not?)
+//  Ongoing: 2022-11-10T23:07:34AEDT 'write!()' macro returns 'std::fmt::Result' (return value for custom 'Display' implementation)
+//  Ongoing: 2022-11-11T00:10:43AEDT YouCompleteMe, how to report version of <Rust/other> language being used
 //  }}}
+
+//  Continue: 2022-11-10T21:57:29AEDT using Cow with str/String
+//  Continue: 2022-11-10T23:15:04AEDT (expand example) Using formatting code in custom code example 'write_log_entry()' / 'Eg_log!()'
 
 use std::str::FromStr;
 use std::borrow::Cow;
@@ -285,7 +291,7 @@ fn example_String()
 
     //  Strings as Generic Collections: 
     //  String implements both 'std::default::Default' / 'std::iter::Extend'
-    //  &str implements 'Default'
+    //  &str implements 'std::default::Default'
 
     println!("example_String");
 }
@@ -303,6 +309,7 @@ fn example_Cow_and_String()
     }
     println!("user=({})", get_name());
 
+    //  Using Cow with <String/str>
     //  <>
 
     println!("example_Cow_and_String, DONE");
@@ -311,13 +318,239 @@ fn example_Cow_and_String()
 
 fn example_Formatting_Values()
 {
+    //  Rust uses formatting macros for outputting text
+    //      format!()
+    //      println!() / print!()
+    //      writeln!() / write!()
+    //      panic!()
+    //  These always borrow a reference to their arguments (never mutating/taking-ownership of them)
+
+    println!("{:.3}μs: relocated {} at {:#x} to {:#x}, {} bytes",
+             0.84391, "object", 140737488346304_usize, 6299664_usize, 64);
+
+    //  Implement 'std::fmt::Display' to use these with custom types
+
+    //  <(Use 'format_args!' and 'std::fmt::Arguments' to create custom functions/macros supporting formatting)>
+
+    //  Format parameters: {which:how}
+    //  <(where no 'which' is given, arguments are used L->R)>
+
+    assert_eq!(format!("from the {1} to the {0}", "grave", "cradle"), 
+               "from the cradle to the grave");
+
+    assert_eq!(format!("v=({:?})", vec![0,1,2,5,12,29]),
+                "v=([0, 1, 2, 5, 12, 29])");
+
+    assert_eq!(format!("name=({:?})", "Nemo"),
+                "name=(\"Nemo\")");
+
+    assert_eq!(format!("{:08.2} km/s", 11.186),
+                "00011.19 km/s");
+
+    assert_eq!(format!("{:02x} {:02x}", 105, 42),
+                "69 2a");
+
+    //let insn = "adc #42"; let lsb = 105; let msb = 42;
+    //assert_eq!(format!("{lsb:02x}, {msb:02x}, {insn}"), "69, 2a, adc #42");
+
+    //  Use double '{{' to print a literal '{'
+    assert_eq!(format!("{{}}"), "{}");
+
+    //  'std::path::Path' supports Display
+
+    //  Formatting text values:
+    //          {:4}            minimum field width
+    //          {:.12}          text length limit
+    //          {:4.12}         minimum field width and text length limit
+    //          {:<12}          width, aligned left
+    //          {:^12}          width, aligned center
+    //          {:>12}          width, aligned right
+    //          {:=^12}         width, aligned center, pad with '='
+    //          {:*>12.4}       width, limit, aligned right, pad with '*'
+    //  <(Width of special characters)>
+    //  (is best handled by UI toolkit / HTML/CSS/Browser)
+
+    //  Formatting integers:
+    //          {:+}            forced sign
+    //          {:12}           minimum field width
+    //          {:012}          width, leading zeros
+    //          {:+012}         width, leading zeros, forced sign
+    //          {:<12}          width, align left
+    //          {:^12}          width, align center
+    //          {:>12}          width, align right
+    //          {:<+12}         width, align left, forced sign
+    //          {:=^12}         width, align center, pad with '='
+    //          {:b}            binary notation
+    //          {:o}            octal notation
+    //          {:x}            hex notation
+    //          {:+#12x}        width, hex notation, forced sign, pad with '#'
+    //  <(When we request leading zeros, alignment/padding are ignored)>
+
+    //  Formatting floats:
+    //          {:.2}           precision
+    //          {:12}           minimum field width
+    //          {:12.2}         width, precision
+    //          {:012.6}        width, precision, leading zeros
+    //          {:e}            scientific
+    //          {:E}            scientific
+    //          {:12.3e}        width, precision, scientific
+
+    //  Custom types that need to be displayed should implement 'std::fmt::Display'
+    //  Error types should implement 'std::error::Error' (which extends 'Display')
+
+
+    //  '{:?}' is used for debugging output
+    //  Implement 'std::fmt::Debug' or use '#[derive(Debug)]' for custom types
+    //  Supported by standard containers, although exact format is not guaranteed not to change
+
+    #[derive(Copy, Clone, Debug)]
+    struct Eg_Complex { re: f64, im: f64, };
+    let x = Eg_Complex { re: -0.5, im: 1.75, };
+    println!("x=({:?})", x);
+
+
+    //  Printing pointers: {:p}
+    //  (For any kind of pointer: Box / Rc / <ect>)
+    //  <(The value printed is that of the pointer to the underlying resource)>
+    use std::rc::Rc;
+    let a = Rc::new("mazurka".to_string());
+    let b = a.clone();
+    let c = Rc::new("mazurka".to_string());
+    println!("a=({:p}), b=({:p}), c=({:p})", a, b, c);
+
+
+    //  Specifying order of parameters:
+    assert_eq!(format!("{1}, {0}, {2}", "zeroth", "first", "second"),
+                "first, zeroth, second");
+
+    //  Specifying parameters by name:
+    assert_eq!(format!("{description:.<25}{quantity:2} @ {price:5.2}",
+                       price=3.25, quantity=3, description="Maple Tumeric Latte"),
+                "Maple Tumeric Latte...... 3 @  3.25");
+
+    //  Ordered/named/positional arguments to print/format macros can be mixed 
+    //  (named arguments appear at the end of the list)
+    assert_eq!(format!("{mode} {2} {} {}",
+                       "people", "eater", "purple", mode="flying"),
+                "flying purple people eater");
+
+
+    //  Dynamic widths/precisions
+    let content = "There can be no other end";
+    assert_eq!(format!("{:>.9}", content), "There can");
+    assert_eq!(format!("{:>.*}", 9, content), "There can");
+    assert_eq!(format!("{:>.1$}", content, 9), "There can");
+    assert_eq!(format!("{:>.width$}", content, width=9), "There can");
+    //  (field width / precision values must be usize)
+
+
+    //  Formatting custom types:
+    //      {}                  std::fmt::Display
+    //      {bits:#b}           std::fmt::Binary
+    //      {:#5o}              std::fmt::Octal
+    //      {:4x}               std::fmt::LowerHex
+    //      {:016X}             std::fmt::UpperHex
+    //      {:.3e}              std::fmt::LowerExp
+    //      {:.3E}              std::fmt::UpperExp
+    //      {:#?}               std::fmt::Debug
+    //      {:p}                std::fmt::Pointer
+
+    //  <(All these traits have the same form)>
+    trait Eg_Display {
+        fn fmt(&self, dest: &mut std::fmt::Formatter) 
+            -> std::fmt::Result;
+    }
+
+    //  Implement Display for Eg_Complex, with optional polar format (specified by '#')
+    impl std::fmt::Display for Eg_Complex {
+        fn fmt(&self, dest: &mut std::fmt::Formatter) -> std::fmt::Result {
+            if dest.alternate() {
+                let abs = f64::sqrt( self.re * self.re + self.im * self.im );
+                let theta = f64::atan2(self.im, self.re) / std::f64::consts::PI * 180.0;
+                write!(dest,  "{} ∠ {}°", abs, theta)
+            } else {
+                let i_sign = if self.im < 0.0 { '-' } else { '+' };
+                write!(dest, "{} {} {}i", self.re, i_sign, f64::abs(self.im))
+            }
+        }
+    }
+
+    let x = Eg_Complex { re: 0.0, im: 1.0, };
+    assert_eq!(format!("{}", x), "0 + 1i");
+    assert_eq!(format!("{:#}", x), "1 ∠ 90°");
+
+    //  <(custom 'Display' implementations should never originate errors themselves(?))>
+
+
+    //  Using custom formatting in code:
+    //  <>
+    fn write_log_entry(entry: std::fmt::Arguments) {
+        //  ...
+    }
+    write_log_entry(format_args!("abc, i=({})", 53));
+    macro_rules! Eg_log {
+        ($format:tt, $($arg:expr),*) => 
+            ( write_log_entry(format_args!($format, $($arg), *)) )
+    }
+    Eg_log!("abc, i=({})", 53);
+    //  (Creating an 'std::fmt::Arguments' object is cheap - formatting is not performed unless it is required)
+
+
     println!("example_Formatting_Values, DONE");
 }
 
 
 fn example_Regular_Expressions()
 {
+    //  Rust's official regex library is an external crate
+    //  (add 'regex = "0.2.2"' to Cargo.toml)
+    extern crate regex;
+
+    //  'regex' uses Re format <?>
+
+    //  Basic use:
+    use regex::Regex;
+
+    let re = Regex::new(r"(\d+)\.(\d+)\.(\d+)(-[-.[:alnum:]]*)?").unwrap();
+    let haystack = r#"regex = '0.2.5'"#;
+    assert!(re.is_match(haystack));
+
+    //  'Regex::captures()' returns a 'regex::Captures' value
+    let captures = re.captures(haystack).unwrap();
+    assert_eq!(&captures[0], "0.2.5");
+    assert_eq!(&captures[1], "0");
+    assert_eq!(&captures[2], "2");
+    assert_eq!(&captures[3], "5");
+
+    //  Accessing results by index panics if requested group didn't match
+    assert_eq!(captures.get(4), None);
+    assert_eq!(captures.get(3).unwrap().as_str(), "5");
+    assert_eq!(captures.get(3).unwrap().start(), 13);
+    assert_eq!(captures.get(3).unwrap().end(), 14);
+
+	let haystack = "In the beginning, there was 1.0.0. For a while, we used 1.0.1-beta, but in the end, we settled on 1.2.4.";
+
+    //  Iterate over matches
+	let matches: Vec<&str> = re.find_iter(haystack).map(|x_| x_.as_str()).collect();
+    assert_eq!(matches, vec!["1.0.0", "1.0.1-beta", "1.2.4"]);
+
+    for x in re.find_iter(haystack) {
+        print!("x=({}), ", x.as_str());
+    }
+    println!();
+
+    //  <('find_iter()' produces a iterator returning a Match value for each match)>
+    //  <('captures_iter()' (slower) produces all capture groups)>
+
+    //  'Regex::new()' is slow
+
     println!("example_Regular_Expressions, DONE");
+}
+
+
+fn example_Lazily_Built_Regex()
+{
+    println!("example_Lazily_Built_Regex, DONE");
 }
 
 
@@ -335,6 +568,7 @@ fn main()
     example_Cow_and_String();
     example_Formatting_Values();
     example_Regular_Expressions();
+    example_Lazily_Built_Regex();
     example_Normalization();
 }
 
