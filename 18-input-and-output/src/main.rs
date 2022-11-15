@@ -9,7 +9,11 @@
 //  {{{
 //  Ongoing: 2022-11-14T22:52:25AEDT 'Read' method return types -> book uses u64, rust-docs uses usize
 //  Ongoing: 2022-11-14T23:27:24AEDT io::BufRead vs io::BufReader
-//  Ongoing: 2022-11-14T23:41:06AEDT what is going on with (paths that return) errors in 'use_grep()'?
+//  Ongoing: 2022-11-14T23:41:06AEDT what is going on with (paths that return) errors in 'use_grep()'? [...] (recall that '?' either evaluates to the value, or returns the error) ... (return-ing branches of a match statement *don't* have to be the same type as the rest of the branches?)
+//  Ongoing: 2022-11-15T22:56:01AEDT why is it 'mut buffer: io::BufReader<R>' and not 'buffer: mut io::BufReader<R>'? [...] (and why is it necessary to specify 'BufReader' is Readable?)
+//  Ongoing: 2022-11-15T23:16:43AEDT writing to the middle of a Cursor<Vec<u8>> (can it be done / is it efficent)
+//  Ongoing: 2022-11-15T23:28:08AEDT Reader/Writer on in-memory Vec<u8>: seeking? (what about writing to / reading from same buffer?)
+//  Ongoing: 2022-11-15T23:40:41AEDT debug-printing Cursor doesn't show contents of underlying buffer?
 //  }}}
 use std::io;
 
@@ -130,7 +134,7 @@ fn example_Reading_Lines()
         let mut args = std::env::args().skip(1);
         let target = match args.next() {
             Some(s) => s,
-            None => Err("usage: grep PATTERN FILE...")?
+            None => Err("usage: grep PATTERN FILE...")?,
         };
         let files: Vec<PathBuf> = args.map(PathBuf::from).collect();
         if files.is_empty() {
@@ -149,8 +153,82 @@ fn example_Reading_Lines()
 }
 
 
+fn example_Emulating_BufReaderBufWriter()
+{
+    //  LINK: https://stackoverflow.com/questions/41069865/how-to-create-an-in-memory-object-that-can-be-used-as-a-reader-writer-or-seek
+
+    //  Creating a BufReader from bytes / str
+    use std::io::{Read,BufReader,BufWriter};
+    fn read_Reader<R: Read>(mut buffer: BufReader<R>) {
+        let mut s = String::new();
+        let _ = buffer.read_to_string(&mut s);
+        println!("got s=({})", s);
+    }
+    read_Reader(BufReader::new(Cursor::new(vec![97,98,99])));
+
+    //  Creating a BufReader from String -> convert it to bytes
+    read_Reader(BufReader::new("abc".as_bytes()));
+    let mut s = "abc".to_string();
+
+    fn write_Writer<W: Write>(buffer: &mut BufWriter<W>) {
+        buffer.write("Hello World".as_bytes());
+    }
+
+    let mut b = BufWriter::new(Cursor::new(Vec::<u8>::new()));
+    write_Writer(&mut b);
+    println!("b=({:?})", b);
+
+    let mut b = BufWriter::new(Vec::<u8>::new());
+    write_Writer(&mut b);
+    println!("b=({:?})", b);
+
+    let mut v = Vec::<u8>::new();
+    let mut b = BufWriter::new(&mut v);
+    write_Writer(&mut b);
+    println!("b=({:?})", b);
+    drop(b);
+    println!("v=({:?})", &v);
+
+
+    //  Creating a BufWriter from String
+    //  (can be done, requires unsafe function)
+    //  <(or, instead, use Vec<u8> and convert that to String later?)>
+    let mut s = String::new();
+    let mut b = BufWriter::new(unsafe { s.as_mut_vec() } );
+    write_Writer(&mut b);
+    drop(b);
+    println!("s=({:?})", s);
+
+    //  'Cursor<Vec<u8>>' can be used like a file 
+    //  (it implements Read/Write/Seek)
+    use std::io::{Cursor,SeekFrom};
+    let mut c = Cursor::new(Vec::<u8>::new());
+    c.write_all(&[1,2,3,4,5]).unwrap();
+    c.seek(SeekFrom::Start(0)).unwrap();
+    let mut out = Vec::<u8>::new();
+    c.read_to_end(&mut out).unwrap();
+    let z = c.into_inner();     //  access underlying Vec<u8> from Cursor<Vec<u8>>
+
+    //  Vec<u8> can be used as a file
+    //  (It implements Write, and &[u8] implements Read, but cannot Seek)
+    let mut f = Vec::<u8>::new();
+    f.write_all(&[1,2,3,4,5]).unwrap();
+    let mut out = Vec::<u8>::new();
+    let mut slice = f.as_slice();
+    slice.read_to_end(&mut out).unwrap();
+
+    println!("example_Emulating_BufReaderBufWriter, DONE");
+}
+
+
 fn example_Collecting_Lines()
 {
+    //  If we collect lines from 'lines()', which produces Result values, we are left with a Vec of Results
+    //let r1: Vec<io::Result<String>> = reader.lines().collect();
+
+    //  However we can use:
+    //let r2 = reader.lines().collect::<io::Result<Vec<String>>>()?;
+
     println!("example_Collecting_Lines, DONE");
 }
 
@@ -159,6 +237,7 @@ fn main()
 {
     example_IO_trait_definitions();
     example_Reading_Lines();
+    example_Emulating_BufReaderBufWriter();
     example_Collecting_Lines();
 }
 
