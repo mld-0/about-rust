@@ -21,6 +21,10 @@
 //  Ongoing: 2022-11-20T23:19:02AEDT is 'Eg_Buffered' correct (should it be (something like) 'Eg_BufRead'?)
 //  Ongoing: 2022-11-20T23:30:58AEDT (this chapter is another example of a subject presented suboptimially - a better summary is called for?)
 //  Ongoing: 2022-11-21T00:57:28AEDT stdin/stdout/stderr usage examples, (imitating/replacing stdin?)
+//  Ongoing: 2022-11-25T18:26:38AEDT difference between 'readlink' / 'realpath' (corresponding to) canonicalize / read_link 
+//  Ongoing: 2022-11-25T18:29:11AEDT 'remove_file' (and other deletion (and creation) functions) return nothing to indicate success/failure (do they panic on failure?)
+//  Ongoing: 2022-11-25T18:41:19AEDT (case study) object 'MetaData' - return type of a function that <differs/represents> by OS(?)
+//  Ongoing: 2022-11-25T19:40:33AEDT recusive 'copy_dir_to()' function untested [...] (also I don't like '&dest.join(entry.file_name())')
 //  }}}
 
 macro_rules! vec_of_strings {
@@ -30,7 +34,7 @@ macro_rules! vec_of_strings {
 use std::io;
 
 use std::io::prelude::*;
-//  Provides:
+//  <(Provides the 4 main IO Traits)>
 //          Read            byte-oriented input
 //          BufRead         text-or-byte-oriented input 
 //          Write           text-or-byte oriented output
@@ -500,6 +504,7 @@ fn example_files_and_directories()
     //  Use Path for absolute/relative paths
     //  Use OsStr for indervidual components of a path
 
+    //  Passing a Path:
     //  str / OsStr / Path all implement 'AsRef<Path>', allowing us to declare a function that accepts any of them as a path
     fn swizzle_file<P>(path_arg: P) -> io::Result<()> 
         where P: AsRef<std::path::Path>
@@ -511,6 +516,7 @@ fn example_files_and_directories()
 
 
     //  std::path::Path methods:
+    //
     //  Path::new(str)
     //      Convert &str/&OsStr to &Path
     //
@@ -544,20 +550,108 @@ fn example_files_and_directories()
     //      Convert Path to str, replacing invalid characters
     //
     //  path.display()
-    //      Return value for printing path
+    //      Return value implementing 'std::fmt::Display' for printing path
 
 
-    //  Filesytem access functions:
-    //  <>
+    //  'std::fs' filesystem functions:
+    //  Designed for consistent behaviour across Unix/Windows
+    //  Implementation is <performed> by system calls
+    //  (return io::Result<()> unless otherwise noted)
+    //
+    //      create_dir(path)
+    //      create_dir_all(path)
+    //          create a single/multi-level directory
+    //
+    //      remove_dir(path)
+    //      remove_dir_all(path)
+    //          remove a single/muti-level directory
+    //
+    //      copy(src, dest) -> Result<u64>
+    //          return size of copied file in bytes
+    //
+    //      remove_file(path)
+    //      rename(src, dest)
+    //      hard_link(src, dest)
+    //      
+    //      canonicalize(path) -> Result<PathBuf>
+    //          realpath
+    //
+    //      metadata(path) -> Result<Metadata>
+    //          stat
+    //
+    //      symlink_metadata(path) -> Result<Metadata>
+    //          lstat
+    //
+    //      read_dir(path) -> Result<ReadDir>
+    //          return a stream of items in a directory
+    //
+    //      read_link(path) -> Result<PathBuf>
+    //          readlink
+    //      
+    //      set_permissions(path, perm)
+    //          chmod
 
 
     //  Reading directories:
-    //  <>
-
+    //  Use 'std::fs::read_dir' or 'Path.read_dir()'
+    //  ('.' and '..' are not listed)
+    let path = std::env::temp_dir();
+    for entry_result in path.read_dir().unwrap() {
+        let entry: std::fs::DirEntry = entry_result.unwrap();
+        let filename: std::ffi::OsString = entry.file_name();
+        let filepath: std::path::PathBuf = entry.path();
+        let filetype: std::fs::FileType = entry.file_type().unwrap();
+        let metadata: std::fs::Metadata = entry.metadata().unwrap();
+    }
 
     //  Platform specific features:
-    //  <>
+    //  There is no portable symlink function, since windows cannot handle symlinks
 
+    //  'std::os' provides <various> platform specific features (only available on said platform)
+    //  The '[#cfg]' attribute indicates conditional compilation
+
+    //  Example: recursively copy a directory
+    //  (uses library 'symlink()' for Unix, and provides said function as an error otherwise)
+    use std::fs;
+    use std::io;
+    use std::path::Path;
+    fn copy_dir_to(src: &Path, dest: &Path) -> io::Result<()> {
+        //  Provide 'symlink()' for unix
+        #[cfg(unix)]
+        use std::os::unix::fs::symlink;
+        //  Provide 'symlink()' for non-unix
+        #[cfg(not(unix))]
+        fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(src: P, _dst: Q) -> std::io::Result<()> {
+            Err(io::Error::new(io::ErrorKind::Other,
+                               format!("can't copy symlink {}", src.as_ref().display())));
+        }
+        fn handle_copy(src: &Path, src_type: &fs::FileType, dest: &Path) -> io::Result<()> {
+            if src_type.is_file() {
+                fs::copy(src, dest)?;
+            } else if src_type.is_dir() {
+                copy_dir_to(src, dest);
+            } else if src_type.is_symlink() {
+                let target = src.read_link()?;
+                symlink(target, dest);
+            } else {
+                return Err(io::Error::new(io::ErrorKind::Other,
+                                          format!("Can't copy: {}", src.display())));
+            }
+            Ok(())
+        }
+        if !dest.is_dir() {
+            fs::create_dir(dest)?;
+        }
+        for entry_result in src.read_dir()? {
+            let entry = entry_result?;
+            let file_type = entry.file_type()?;
+            handle_copy(&entry.path(), &file_type, &dest.join(entry.file_name()))?;
+        }
+        Ok(())
+    }
+
+    //  Prelude to enable unix extensions
+    //use std::os::unix::prelude::*;
 
     println!("example_files_and_directories, DONE");
 }
@@ -565,6 +659,8 @@ fn example_files_and_directories()
 
 fn example_Networking()
 {
+    //  <>
+
     println!("example_Networking, DONE");
 }
 
