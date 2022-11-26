@@ -19,6 +19,14 @@
 //  Ongoing: 2022-11-26T02:48:32AEDT 'get(index) -> Option<&T>' is a lie - (the truth is one of those far-more-horrifying type of things) (doesn't cover range results) [...] (clarify, when a range is returned, it is as a reference(?)) [...] that also makes 'get_mut(index) -> Option<&mut T>' a lie ... are first/last -> Option<&T> correct (if get is a lie)(?)
 //  Ongoing: 2022-11-26T02:56:12AEDT panic-ing while halfway through iterating over a vector by-value (moving elements out of it) ... (vector is deamed to be consumed as soon as we <start/finish> iterating over it(?))
 //  Ongoing: 2022-11-26T03:00:13AEDT '.iter()' vs 'into_iter()'
+//  Ongoing: 2022-11-26T21:44:34AEDT What about the Rust rules of references say we can't borrow '&mut v[0]' and '&mut v[1]' at the same time(?)
+//  Ongoing: 2022-11-26T22:23:42AEDT Rust has such comprehensive 'split' functions because we can't borrow multiple references to multiple elements simultaneously (without them)
+//  Ongoing: 2022-11-26T22:26:07AEDT why 'RSplitN' is needed (why 'rsplitn()' can't just return 'SplitN')
+//  Ongoing: 2022-11-26T22:27:40AEDT what actually happens when we split a <slice/Vector> - book implies one buffer becomes <two/multiple>(?)
+//  Ongoing: 2022-11-26T22:28:33AEDT how to do what 'split()' does, without omitting separator elements
+//  Ongoing: 2022-11-26T22:31:40AEDT many function <signatures> presented here are <simplified>
+//  Ongoing: 2022-11-26T23:12:49AEDT why comparing slices container comparisons use PartialEq / PartialOrd ... (a type that is Ord is also PartialOrd)
+//  Ongoing: 2022-11-26T23:26:30AEDT book example for shuffle uses thread_rng().shuffle() (which for us is an error)
 //  }}}
 
 macro_rules! vec_of_strings {
@@ -173,45 +181,275 @@ fn example_Vec()
     }
     iteration();
 
+
     fn growing_and_shrinking()
     {
+        //  slice.len()
+        //  slice.is_empty()
+
+        //  Vectors grow as needed, however this incurs a penalty that can be eliminated by pre-allocating capacity
+        //
+        //  Vec::with_capacity(n)
+        //      New vector with capacity 'n'
+        //
+        //  vec.capacity()
+        //      Vector current capacity
+        //
+        //  vec.reserve(n)
+        //      Increase Vector capacity for at least 'n' more elements
+        //
+        //  vec.reserve_exact(n)
+        //      Increase Vector capacity for 'n' more elements
+        //
+        //  vec.shrink_to_fit()
+        //      Decrease capacity to length of Vector
+        //
+
+        //  Adding/removing elements
+        //  (Only 'resize' Clones values - all other functions move values)
+        //
+        //  vec.push(value)
+        //      Add <(move)> value to end of Vector
+        //
+        //  vec.pop() -> Option<T>
+        //      Remove and return the last element
+        //
+        //  vec.insert(index, value)
+        //      Insert 'value' at 'vec[index]' (Slow for long vectors)
+        //
+        //  vec.remove(index)
+        //      Remove and return 'vec[index]' (Slow for long Vectors)
+        //
+        //  vec.resize(new_len, value)
+        //      Add copies of 'value' to Vector until length is 'new_len'
+        //      ('value' must implement 'Clone')
+        //
+        //  vec.truncate(new_len)
+        //      Reduce the length of the Vector to 'new_len', dropping any elements in 'vec[new_len..]'
+        //
+        //  vec.clear()
+        //      Remove all elements
+        //
+        //  vec.extend(iterable)
+        //      Push each element in iterable to Vector
+        //      (provided by 'std::iter::Extend')
+        //
+        //  vec.split_off(index) -> Vec<T>
+        //      Remove elements 'vec[index..]', returning them as a new Vector
+        //
+        //  vec.append(&mut vec2)
+        //      Move elements of 'vec2' into 'vec', leaving 'vec2' empty
+        //
+        //  vec.drain(range) -> Drain<T>
+        //      Removes 'vec[range]' from Vector, returning an iterator of those values
+        //
+        //  vec.retain(test)
+        //      Remove all elements for which 'test(element)' is False
+        //
+        //  vec.dedup()
+        //      Remove repeated (adjacent) elements from Vector
+        //
+        //  vec.dedup_by(same)
+        //      As per 'dedup', but use closure 'same' to determine whether two elements are equal
+        //  
+        //  vec.dedup_by_key(key)
+        //      As per 'dedup' by treat elements as equal if key(&mut e1) == key(&mut e2)
+
+
+        //  Remove duplicate values without sorting / losing order
+        //  (Alternative to 'vec.dedup()')
+        let mut byte_vec = b"Misssssssissippi".to_vec();
+        let mut seen = HashSet::new();
+        byte_vec.retain(|r| seen.insert(*r));
+        assert_eq!(&byte_vec, b"Misp");
+
     }
     growing_and_shrinking();
 
+
     fn joining()
     {
+        //  Methods where 'slices' is an array-of-arrays
+
+        //  slices.concat()
+        //      Return vector made by concatenating all slices
+        assert_eq!( [[1,2],[3,4],[5,6]].concat(), vec![1,2,3,4,5,6] );
+
+        //  slices.join(&seperator)
+        //      As per 'concat()', but place (copy of) 'seperator' between slices
+        assert_eq!( [[1,2],[3,4],[5,6]].join(&0), vec![1,2,0,3,4,0,5,6] );
+
     }
     joining();
 
+
     fn splitting()
     {
+        //  We cannot have more than one mutable reference into Vector at a time
+        let mut v = vec![1,2,3];
+        //let a = &mut v[0];
+        //let b = &mut v[1];                    //  error, cannot borrow more than 1 mutable reference
+        //println!("a=({:?})", a);
+
+        //  Instead, Rust provides methods that can return multiple mutable references into Vector
+        //  <(These are safe as they split the Vector's data into non-overlapping regions)>
+
+        //  These functions do not modify an array/slice/vector, they merely return references each part of the data inside
+        //
+        //  slice.iter()
+        //  slice.iter_mut()
+        //      Produce a reference/mutable-reference to each element of the slice
+        //
+        //  slice.split_at(index) -> (&[T], &[T])
+        //  slice.split_at_mut(index) -> (&mut [T], &mut [T])
+        //      Divide a slice, returning (&slice[..index], &slice[index..])
+        //
+        //  slice.split_first() -> (&T, &[T])
+        //  slice.split_first_mut() -> (&mut T, &mut [T])
+        //      <(Equivalent to 'split_at(0)')>
+        //
+        //  slice.split_last() -> (&[T], &T)
+        //  slice.split_last_mut() -> (&mut [T], &mut T)
+        //      As with 'split_first', but for the last element
+        //  
+        //  slice.split(is_sep) -> Split<T>
+        //  slice.split_mut(is_sep) -> SplitMut<T>
+        //      Split where 'is_sep(&element)' is True, returning an iterator over subslices
+        //      (matched elements are not included in subslices)
+        //
+        //  slice.splitn(n, is_sep) -> SplitN<T>
+        //  slice.splitn_mut(n, is_sep) -> SplitNMut<T>
+        //      As per 'split()', but return at most 'n' subslices
+        //
+        //  slice.rsplitn(n, is_sep) -> RSplitN<T>
+        //  slice.rsplitn_mut(n, is_sep) -> RSplitNMut<T>
+        //      As per 'splitn()', but scanning/splitting the slice in reverse order
+        //
+        //  slice.chunks(n) -> Chunks<T>
+        //  slice.chunks_mut(n) -> ChunksMut<T>
+        //      Return an iterator over non-overlapping subslices of length 'n'
+        //
+        //  slice.windows(n) -> Windows<T>
+        //      Return an iterator over all contiguous windows of length 'n'
+        //      (subslices overlap, hence 'windows_mut' is not available)
+
+
+        //  Example: 'windows(2)' is useful for finding the difference between values
+        let temps = vec![21, 24, 17, 14, 16, 29, 23];
+        let temps_delta = temps.windows(2).map(|w| w[1] - w[0]).collect::<Vec<_>>();
+        println!("temps=({:?}), temps_delta=({:?})", temps, temps_delta);
+
     }
     splitting();
 
+
     fn swapping()
     {
+        //  slice.swap(i, j)
+        //      Swaps elements 'slice[i]' / 'slice[j]'
+
+        //  vec.swap_remove(i)
+        //      Removes 'vec[i]', replacing it with the Vectors last element
+        //      (Fast removal of an item from the middle of a vector, changes the vector's order)
+
     }
     swapping();
 
+
     fn sorting_and_searching()
     {
+        //  slice.sort()
+        //      Stable sort Vector elements into increasing order
+        //      (T must implement Ord)
+        //
+        //  slice.sort_by(cmp)
+        //      Stable sort using comparison function 'cmp(e1, e2)'
+        //      Compare tuples to sort by multiple fields
+        //  
+        //  slice.sort_by_key(key)
+        //      Stable sort by 'key(element) -> K', where K implements Ord
+        //      (note that 'key(element)' is not cached - function may be called many times)
+        //      'key' functions which borrow a reference from the element cannot be used
+
+        //  slice.reverse()
+        //      Reverse in-place
+
+        //  slice.contains(x) -> bool
+        //      Does slice contain 'x'. 
+        //      Performs linear search, 'binary_search()' will be faster for a sorted list
+
+        //  slice.iter().position(|x| *x == value)
+        //      Locate index of 'value' in slice
+
+        //  A sorted slice can be efficently searched:
+        //  (binary search of an unsorted list is not meaningful)
+        //
+        //  slice.binary_search(&value) -> Result<usize, usize>
+        //      Binary search for a given element. If element is found, returns its index as Ok.
+        //      If element is not found, return where it would be inserted as Err.
+        //      <(If there are multiple matches, the index of any of them any be returned)>
+        //
+        //  slice.binary_search_by(&value, cmp) -> Result<usize, usize>
+        //      As per 'binary_search()', using comparison function 'cmp(e1, e2)'
+        //      
+        //  slice.binary_search_by_key(&value, key)
+        //      As per 'binary_search()', but use 'key(element) -> K', where K implements Ord
+
+        //  <(Use the 'ord_subset' crate to support these methods on containers of f32/f64)>
+
     }
     sorting_and_searching();
 
+
     fn comparing_slices()
     {
+        //  If T supports PartialEq, then so do [T; N] / [T] / Vec<T>
+
+        //  If T supports PartialOrd, then so do [T; N] / [T] / Vec<T>
+
+        //  slice.starts_with(values: &[T]) -> bool
+        //  slice.ends_with(values: &[T]) -> bool
+        //      Does the slice start/end with elements in 'values'
+        assert!([1,2,3,4].starts_with(&[1,2]));
+        assert!([1,2,3,4].ends_with(&[3,4]));
+
     }
     comparing_slices();
 
+
     fn random_elements()
     {
+        let mut v1 = (0..=9).collect::<Vec<i32>>();
+
+        use rand::thread_rng;
+        use rand::seq::SliceRandom;
+
+        //  rng.choose(&slice) -> Option<&T>
+        //      Return reference to random element in 'slice'
+        let x: &i32 = v1.choose(&mut thread_rng()).unwrap();
+
+        //  rng.shuffle(&mut slice)
+        //      Randomly re-order elements in 'slice'
+        v1.shuffle(&mut thread_rng());
+        //thread_rng().shuffle(&mut v1)         //  (invalid) (book example)
+
     }
     random_elements();
 
+
     fn invalidation_errors()
     {
+        //  In most languages, modifying a container while iterating over it invalidates the iterator
+        //  This is undefined behaviour in C++, (Java will throw an exception)
+
+        //  Rust does not allow us to modify a container while a reference to an element in it exists
+
+        //  This prevents us from writing certain algorithms (that we shouldn't have been writing anyway)
+        //  instead use functions like Vec.filter() / Vec.retain() 
+
     }
     invalidation_errors();
+
 
     println!("example_Vec, DONE");
 }
