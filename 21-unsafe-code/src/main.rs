@@ -14,13 +14,19 @@
 //  Ongoing: 2022-12-02T00:29:09AEDT detectable-ness of Rust UB (is Rust like C in that a body of code cannot reasonably be judged to be UB free?)
 //  Ongoing: 2022-12-04T19:27:32AEDT 'Rust code that does not use unsafe features is guaranteed to follow all these rules if it compiles' (where breaking said rules is UB) ... ((another source that says) not using unsafe features = no UB(?))
 //  Ongoing: 2022-12-04T20:07:11AEDT (remind me) what is a deref coercision
-//  Ongoing: 2022-12-04T20:26:11AEDT overflow in our 'distance()' (pointer subtraction function) (conversion from *const T to isize)(?)
+//  Ongoing: 2022-12-04T20:26:11AEDT overflow in our 'distance()' (pointer subtraction function) (conversion from *const T to isize)(?) [...] (book acknowledges(?) that it is relying on start/end pointer belong to the same memory block to avoid overflow when converting to 'isize' (is that a hard rule or a practical one?))
 //  Ongoing: 2022-12-04T20:51:26AEDT (does a type like 'RefWithFlag') (using an 'assert' in the ctor) catch invalid use at compile-time or runtime (and what is the significance of this vis-a-vis Rust safety) 
 //  Ongoing: 2022-12-04T21:01:46AEDT lifetimes of references borrowed from derefenced raw pointers - a topic no sufficently covered here(?) 
+//  Ongoing: 2022-12-04T23:29:53AEDT 'The size of a type is rounded up to a multiple of its aligment' -> this is true of Rust, or this is true more generally?
+//  Ongoing: 2022-12-04T23:32:39AEDT any primative alignments for which x86/ARM differ?
+//  Ongoing: 2022-12-04T23:34:46AEDT alignment of tuples (being smaller than their size?)
+//  Ongoing: 2022-12-04T23:58:14AEDT clairfy, 'offset' vs 'wrapping_offset' (book says the later is for going beyond end of the array (going by name alone, shouldn't that be the former?))
 //  }}}
 #![allow(unused)]
 #![allow(non_snake_case)]
 #![allow(non_camel_case_types)]
+
+//  Continue: 2022-12-04T23:57:37AEDT 'example_raw_pointers/pointer_arithmetic', 'p.offset(o)' / 'p.wrapping_offset(o)' examples
 
 //  Use pointers only were references are inadequate (memory management / FFI [foreign-function-interfaces] / <>)
 //  References: shared '&' / mutable '&mut'
@@ -243,7 +249,7 @@ fn example_raw_pointers()
     //  Raw pointers are not automatically dereferenced by the '.' operator
     //  Use '(*p).method()'
 
-    //  Raw pointers do not implement Deref, deref coercisions do not apply
+    //  Raw pointers do not implement Deref, deref coercions do not apply
 
     //  Rust will implicitly coerce references to raw pointers (but not vice-versa)
 
@@ -251,7 +257,7 @@ fn example_raw_pointers()
     //  Hashing a raw pointer hashes the address, not the value stored there
 
     //  'std::fmt::Display' does not support raw pointer
-    //  'std::fmt::Debug' / 'std::fmt::Pointer' display raw pointers as hex addresses (without derefencing them)
+    //  'std::fmt::Debug' / 'std::fmt::Pointer' display raw pointers as hex addresses (without dereferencing them)
 
     //  The '+' operator does not handle raw pointers
     //  <(Use 'offset()' / 'wrapping_offset()' methods to add to a pointers value)>
@@ -345,7 +351,6 @@ fn example_raw_pointers()
 
         //let x: u8 = 53;                               //  1-byte aligned type
         //let f = RefWithFlag::new(&x, true);           //  panics at runtime
-
     }
     eg_RefWithFlag();
 
@@ -362,11 +367,94 @@ fn example_raw_pointers()
 
     fn type_size_and_alignment()
     {
+        use std::mem::size_of;
+        use std::mem::align_of;
 
+        //  Any Sized type occupies a constant number of bytes in memory, and must be placed at an address that is some multiple of its alignment value (which is architecture specific)
+        //  <(This alignment value will always be a power of 2)>
+        //  The size of a type is rounded up to a multiple of its aligment
+
+        //  'std::mem::size_of<T>()' returns the size of type 'T' in bytes
+        //  'std::mem::align_of::<T>()' returns the alignment of type 'T"
+
+        assert_eq!(8, size_of::<(i32, i32)>());
+        assert_eq!(8, size_of::<(i32, u8)>());
+        assert_eq!(4, align_of::<(i32, i32)>());
+        assert_eq!(4, align_of::<(i32, u8)>());
+
+        //  <(The size/alignment of an Unsized type depends on the  value at hand)>
+        //  'std::mem::size_of_val(x: &T)' returns the size of a given reference
+        //  'std::mem::align_of_val(x: &T)' returns the alignment of a given reference
+
+        let s: &[i32] = &[1, 3, 9, 27, 81];
+        assert_eq!(5*size_of::<i32>(), std::mem::size_of_val(s));
+        assert_eq!(align_of::<i32>(), std::mem::align_of_val(s));
+
+        let t: &str = "alligator";
+        assert_eq!(9*size_of::<u8>(), std::mem::size_of_val(t));
+        assert_eq!(align_of::<u8>(), std::mem::align_of_val(t));
+
+        use std::fmt::Display;
+        let unremarkable: &dyn Display = &193_u8;
+        let remarkable: &dyn Display = &0.0072973525664;
+        //  Information is that of underlying type, which is determine from trait object vtable 
+        assert_eq!(size_of::<u8>(), std::mem::size_of_val(unremarkable));
+        assert_eq!(align_of::<u8>(), std::mem::align_of_val(unremarkable));
+        assert_eq!(size_of::<f64>(), std::mem::size_of_val(remarkable));
+        assert_eq!(align_of::<f64>(), std::mem::align_of_val(remarkable));
     }
     type_size_and_alignment();
 
+
+    fn pointer_arithmetic()
+    {
+        use std::marker::PhantomData;
+
+        //  The elements of an array / slice / vector are laid out as a contiguous block of memory
+        //  Elements are reguarly spaced and consistent size
+        //  This allows us to access elements in memory given the address of the start of the block, and the offset (size type * element index)
+
+        //  This sequential layout makes raw pointers useful as array traversal bounds
+        //  It is valid to use the first byte after the end of the array as a bound
+
+        //  Definition: standard library iterator over a slice
+        struct Eg_Iter<'a, T: 'a> {
+            ptr: *const T,
+            end: *const T,
+            //  ...
+            unused: PhantomData<&'a T>,         //  (to silence "unused 'a" warning)
+        }
+
+        //  <(Use 'p.offset(o)' to access '*(p+o)')>
+        //  <(Use 'p.wrapping_offset(o)' to offset pointers beyond the limits of the array
+        //  (it is undefined to dereference a pointer offset beyond the end of the array)
+    }
+    pointer_arithmetic();
+
+
+    fn moving_into_outOf_memory() 
+    {
+        //  <>
+    }
+    moving_into_outOf_memory();
+
+
+    fn panic_safely_in_unsafe_code()
+    {
+        //  <>
+    }
+    panic_safely_in_unsafe_code();
+
+
     println!("example_raw_pointers, DONE");
+}
+
+
+fn example_Foreign_Functions()
+{
+    //  <>
+
+    println!("example_Foreign_Functions, DONE");
 }
 
 
@@ -377,5 +465,6 @@ fn main()
     example_undefined_behaviour();
     example_unsafe_traits();
     example_raw_pointers();
+    example_Foreign_Functions();
 }
 
