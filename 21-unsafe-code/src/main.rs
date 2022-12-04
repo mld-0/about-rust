@@ -12,6 +12,11 @@
 //  Ongoing: 2022-12-01T23:15:17AEDT meaning of the term 'contact' in the context of Rust
 //  Ongoing: 2022-12-01T23:22:01AEDT <(definition: aliasing - where two references point to <the-same/overlapping> memory)>
 //  Ongoing: 2022-12-02T00:29:09AEDT detectable-ness of Rust UB (is Rust like C in that a body of code cannot reasonably be judged to be UB free?)
+//  Ongoing: 2022-12-04T19:27:32AEDT 'Rust code that does not use unsafe features is guaranteed to follow all these rules if it compiles' (where breaking said rules is UB) ... ((another source that says) not using unsafe features = no UB(?))
+//  Ongoing: 2022-12-04T20:07:11AEDT (remind me) what is a deref coercision
+//  Ongoing: 2022-12-04T20:26:11AEDT overflow in our 'distance()' (pointer subtraction function) (conversion from *const T to isize)(?)
+//  Ongoing: 2022-12-04T20:51:26AEDT (does a type like 'RefWithFlag') (using an 'assert' in the ctor) catch invalid use at compile-time or runtime (and what is the significance of this vis-a-vis Rust safety) 
+//  Ongoing: 2022-12-04T21:01:46AEDT lifetimes of references borrowed from derefenced raw pointers - a topic no sufficently covered here(?) 
 //  }}}
 #![allow(unused)]
 #![allow(non_snake_case)]
@@ -132,14 +137,16 @@ fn example_unsafe_functions()
 
 fn example_undefined_behaviour()
 {
+    //  UB is a powerful tool for compiler writers to permit optimizations
+
+    //  <('aliasing' refers to two variables pointing to the same value)>
+
     //  In Rust, mutable references never alias. Breaking this rule in any way results in undefined behavior.
     //  There is no safe way to create two &mut references to the same value, and creating two mutable references via unsafe code is UB.
 
-    //  UB is a powerful tool for compiler writers to permit optimizations
-
     //  Rust optimises code in accordance with its rules for well-behaved programs
-    //          must not read uninitalized memory
-    //          must not create invalid primatives 
+    //          must not read uninitialized memory
+    //          must not create invalid primitives 
     //                  null references/boxes
     //                  bools that are not 0/1
     //                  invalid enum values
@@ -147,13 +154,16 @@ fn example_undefined_behaviour()
     //          no reference may outlive its referent
     //          shared references are read-only
     //          mutable references are exclusive
-    //          must not derefence null / incorrectly-aligned / dangling pointers
+    //          must not deference null / incorrectly-aligned / dangling pointers
     //          must not use pointer to access memory outside allocation associated with pointer
     //          must not contain data races (two threads writing/reading memory without synchronization)
-    //          <(must not unwind <accross> a call made from another language)>
+    //          <(must not unwind <across> a call made from another language)>
     //          must not violate contracts of standard library functions
     //  Violating any of these rules is UB
     //  Rust code that does not use unsafe features is guaranteed to follow all these rules if it compiles
+
+    //  <(another source on UB in Rust(?))>
+    //  <>
 
     println!("example_undefined_behaviour, DONE");
 }
@@ -161,7 +171,202 @@ fn example_undefined_behaviour()
 
 fn example_unsafe_traits()
 {
+    //  <(An unsafe trait has a contract Rust cannot check that implementers must satisfy to avoid UB)>
+
+    //  Classic example of unsafe traits: 'std::marker::Send' / 'std::marker::Sync'
+    //  'Send' requires implementers to be safe to move to another thread
+    //  'Sync' requires implementers to be safe to share among threads by shared reference
+
+    //  Another unsafe trait is 'core::nonzero::Zeroable' (nightly) for types that can be zero-ed 
+    pub unsafe trait Eg_Zeroable {}
+    unsafe impl Eg_Zeroable for u8 {}
+    fn zeroed_vector<T: Eg_Zeroable>(len: usize) -> Vec<T> {
+        let mut result = Vec::with_capacity(len);
+        unsafe {
+            std::ptr::write_bytes(result.as_mut_ptr(), 0, len);
+            result.set_len(len);
+        }
+        result
+    }
+    let v: Vec<u8> = zeroed_vector(1000);
+    assert!(v.iter().all(|&u| u == 0));
+
+    //  0 is not a valid value for a reference, hence implementing 'Eg_Zeroable' for a container holding a reference is undefined (and Rust will not produce an error)
+
+    //  <(unsafe code must not depend on the correctness of the implementation of safe traits)>
+    //  <('std::hash::Hasher' is not an unsafe trait, but it has a requirement: that the same bytes produce the same hash every time)>
+
     println!("example_unsafe_traits, DONE");
+}
+
+
+fn example_raw_pointers()
+{
+    //  A raw pointer is equivalent to a C/C++ pointer
+    //  Raw pointers can form all sorts of structures that Rust's constrained pointer types cannot
+    //  They can only be dereferenced in an unsafe block, since Rust cannot verify their use is safe
+    //  (Creating, modifying, and comparing pointers is considered safe)
+    //  A raw pointer can be NULL ('std::ptr::null()')
+
+    //  <(A raw pointer has the same size as 'usize' / 'isize')>
+    //  Converting a raw pointer to/from a usize is well defined <(what about isize?)>
+
+    //  Raw pointers are neither 'Send' / 'Sync'
+    //  (Therefore, no type that includes raw pointers implements these traits by default)
+    //  <(This makes raw pointers safe to share between threads)>
+
+    //  There are two kinds of raw pointer: '*mut T' / '*const T'
+
+    let mut x = 10;
+    let y = Box::new(20);
+
+    //  Raw pointers can be cast from references, and de-referenced with the '*' operator
+    let p_x  = &mut x as *mut i32;
+    let p_y = &*y as *const i32;
+    unsafe { *p_x += *p_y; }
+    assert_eq!(x, 30);
+
+    //  Example: convert Option<&T> to a raw pointer
+    fn option_to_raw<T>(opt: Option<&T>) -> *const T {
+        match opt {
+            None => std::ptr::null(),
+            Some(r) => r as *const T,
+        }
+    }
+    assert_eq!(option_to_raw::<i32>(None), std::ptr::null());
+
+    //  <(a raw pointer to an unsized type is a fat pointer (just like a reference or Box would be))>
+    //  '*const [u8]' includes a length as well as an address
+
+    //  A pointer to a trait object like '*mut std::io::Write' includes a vtable as well as an address
+
+    //  Raw pointers are not automatically dereferenced by the '.' operator
+    //  Use '(*p).method()'
+
+    //  Raw pointers do not implement Deref, deref coercisions do not apply
+
+    //  Rust will implicitly coerce references to raw pointers (but not vice-versa)
+
+    //  The comparison operators compare the address stored in a new pointer
+    //  Hashing a raw pointer hashes the address, not the value stored there
+
+    //  'std::fmt::Display' does not support raw pointer
+    //  'std::fmt::Debug' / 'std::fmt::Pointer' display raw pointers as hex addresses (without derefencing them)
+
+    //  The '+' operator does not handle raw pointers
+    //  <(Use 'offset()' / 'wrapping_offset()' methods to add to a pointers value)>
+
+    //  The '-' operator does not handle raw pointers
+    //  (But it is possible to implement a 'distance()' method ourselves)
+    fn distance<T>(l: *const T, r: *const T) -> isize {
+        (l as isize - r as isize) / std::mem::size_of::<T>() as isize
+    }
+    let trucks = vec!["garbage", "dump", "moonstruck"];
+    let first = &trucks[0];
+    let last = &trucks[2];
+    assert_eq!(distance(last, first), 2);
+    assert_eq!(distance(first, last), -2);
+
+    //  Some conversions between references and pointers require several steps
+    //&vec![42_u8] as *const String;                    //  invalid
+    &vec![42_u8] as *const Vec<u8> as *const String;
+
+    //  'as' cannot cast raw pointers into references
+    //  This requires the pointer to be dereferenced (in an unsafe block), then borrowing a reference from the dereferenced value
+    //  A reference created this way has an unconstrained lifetime
+
+    //  Some types have methods like 'as_ptr()' / 'as_mut_ptr()' to return raw pointers to their contents
+    //  Owning pointer types like 'Box' / 'Rc' / 'Arc' have 'into_raw()' / 'from_raw()' that convert to/from raw pointers
+
+    //  A pointer can also be created by conversion from an integer
+    //  (although only integers obtained from pointers in the first place should be used this way)
+
+
+    fn dereferencing_safely()
+    {
+        //  Dereferencing null / dangling pointers is UB
+        //  Dereferencing pointers not properly aligned for their referent type is UB
+
+        //  Only borrow a reference to a dereferenced raw pointer if it follow the rules:
+        //          No reference may outlive its referent
+        //          Shared access is read only
+        //          Mutable access is exclusive access
+
+        //  Do not use the value of a raw pointer unless it is valid value of its given type
+
+        //  'offset()' / 'wrapping_offset()' may only be used to access bytes within the block of memory the origional poitner refered to (or the first byte beyond it)
+        //  (any pointer produced by manual pointer arithmetic must also follow this rule)
+
+        //  Do not violate the invariants of the type being accessed by raw pointer
+    }
+    dereferencing_safely();
+
+
+    fn eg_RefWithFlag()
+    {
+        //  Here we create custom type, 'RefWithFlag', which uses bit-manipulation to stores a reference of a 2-byte-aligned and a bool value in a single machine word (The zero-th byte of a 2-byte-aligned value will always be zero - we use this space to store our bool)
+
+        //  <('PhantonData' is a type that occupies no space)>
+        use std::marker::PhantomData;
+
+        //  <(get the byte-alignment of a type)>
+        use std::mem::align_of;
+
+        //  'behaves_like' is necessary to provide lifetime information for reference returned by 'get_ref'
+
+        pub struct RefWithFlag<'a, T: 'a> {
+            ptr_and_bit: usize,
+            behaves_like: PhantomData<&'a T>,
+        }
+
+        impl<'a, T: 'a> RefWithFlag<'a, T> {
+            pub fn new(ptr: &'a T, flag: bool) -> RefWithFlag<T> {
+                assert!(align_of::<T>() % 2 == 0);      //  only 2-byte aligned types
+                RefWithFlag {
+                    ptr_and_bit: ptr as *const T as usize | flag as usize,
+                    behaves_like: PhantomData,
+                }
+            }
+            pub fn get_ref(&self) -> &'a T {
+                unsafe {
+                    let ptr = (self.ptr_and_bit & !1) as *const T;
+                    &*ptr
+                }
+            }
+            pub fn get_flag(&self) -> bool {
+                self.ptr_and_bit & 1 != 0
+            }
+        }
+
+        let v = vec![10, 20, 30];
+        let f = RefWithFlag::new(&v, true);
+        assert_eq!(f.get_ref()[1], 20);
+        assert_eq!(f.get_flag(), true);
+
+        //let x: u8 = 53;                               //  1-byte aligned type
+        //let f = RefWithFlag::new(&x, true);           //  panics at runtime
+
+    }
+    eg_RefWithFlag();
+
+
+    //  Nullable pointers
+    //  A null raw pointer is a zero address
+    //  'std::ptr::null<T>()' returns a '*const T' null pointer
+    //  'std::ptr::null_mut<T>()' returns a '*mut T' null pointer
+
+    //  Checking whether a raw pointer is null:
+    //      '.is_null()' - return whether a pointer is null
+    //      '.as_ref()' - return an Option<&'a T> (which is None in the case of a null pointer)
+
+
+    fn type_size_and_alignment()
+    {
+
+    }
+    type_size_and_alignment();
+
+    println!("example_raw_pointers, DONE");
 }
 
 
@@ -171,5 +376,6 @@ fn main()
     example_unsafe_functions();
     example_undefined_behaviour();
     example_unsafe_traits();
+    example_raw_pointers();
 }
 
