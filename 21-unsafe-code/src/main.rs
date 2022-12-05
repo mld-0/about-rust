@@ -21,12 +21,13 @@
 //  Ongoing: 2022-12-04T23:32:39AEDT any primative alignments for which x86/ARM differ?
 //  Ongoing: 2022-12-04T23:34:46AEDT alignment of tuples (being smaller than their size?)
 //  Ongoing: 2022-12-04T23:58:14AEDT clairfy, 'offset' vs 'wrapping_offset' (book says the later is for going beyond end of the array (going by name alone, shouldn't that be the former?))
+//  Ongoing: 2022-12-05T21:47:15AEDT 'panic_safely_in_unsafe_code' (feels like a topic there is a lot more to say on)
 //  }}}
 #![allow(unused)]
 #![allow(non_snake_case)]
 #![allow(non_camel_case_types)]
 
-//  Continue: 2022-12-04T23:57:37AEDT 'example_raw_pointers/pointer_arithmetic', 'p.offset(o)' / 'p.wrapping_offset(o)' examples
+//  Continue: 2022-12-05T21:40:51AEDT Gap buffer example
 
 //  Use pointers only were references are inadequate (memory management / FFI [foreign-function-interfaces] / <>)
 //  References: shared '&' / mutable '&mut'
@@ -417,23 +418,76 @@ fn example_raw_pointers()
         //  This sequential layout makes raw pointers useful as array traversal bounds
         //  It is valid to use the first byte after the end of the array as a bound
 
+        //  Given a pointer to one variable, we cannot use pointer arithemetic to get a pointer to another variable.
+
         //  Definition: standard library iterator over a slice
         struct Eg_Iter<'a, T: 'a> {
             ptr: *const T,
             end: *const T,
             //  ...
-            unused: PhantomData<&'a T>,         //  (to silence "unused 'a" warning)
+            unused: PhantomData<&'a T>,         //  ((not in book) silence "unused 'a" warning)
         }
 
-        //  <(Use 'p.offset(o)' to access '*(p+o)')>
-        //  <(Use 'p.wrapping_offset(o)' to offset pointers beyond the limits of the array
-        //  (it is undefined to dereference a pointer offset beyond the end of the array)
+        //  'p.offset(o)' / 'p.wrapping_offset(o)' provide access to '*(p+o)'
+        //  The former is unsafe (but faster). Calculating an offset outside the array (except for exactly 1 byte beyond it) is UB
+        //  The later can calculate offsets outside the array (but dereferencing them is still UB)
+
+
+        //  Example: 'wrapping_offset()'
+        let data: [u8; 5] = [1,2,3,4,5];
+        let mut p: *const u8 = data.as_ptr();
+        let step = 2;
+        let mut result = String::new();
+        while p != data.as_ptr().wrapping_offset(6) {
+            unsafe {
+                use std::fmt::Write;
+                write!(result, "{},", *p);
+            }
+            p = p.wrapping_offset(step);
+        }
+        println!("result=({})", result);
+
     }
     pointer_arithmetic();
 
 
     fn moving_into_outOf_memory() 
     {
+        //  When implementing a type that manages its own memory, we must track which parts of memory are uninitialized
+        //  <>
+
+        //  <(This is valid Rust?)>
+        let s1 = "abc".to_string();
+        let s2;         //  uninitialized, <cannot/should-not> be used
+        s2 = s1;
+
+        //  <>
+
+        //  'std::ptr::read(src)' 
+        //  move value of of location 'src' points to, transferring ownership to the caller. After calling, 'src' must be treated as uninitialized.
+
+        //  'std::ptr::write(dest, value)'
+        //  move 'value' into location 'dest' points to, which must be uninitialized memory. The referent now owns the value.
+        //  (used by 'Vec::push()')
+
+        //  'std::ptr::copy(src, dst, count)'
+        //  Move the array of 'count' values pointed to by 'src' to 'dst'
+        //  (equivalent to calling 'read' / 'write' for each element)
+        //  'dst' must be uninitialized memory
+
+        //  'std::ptr::copy_nonoverlapping(src, dst, count)'
+        //  Like 'copy()', but requires that 'src' / 'dst' not overlap
+
+        //  'std::ptr::read_unaligned()'
+        //  'std::ptr::write_unaligned()'
+        //  Like 'read()' / 'write()', but the pointer need not be aligned as normally required for that type
+
+        //  'std::ptr::read_volatile()'
+        //  'std::ptr::write_volatile()'
+        //  Equivalent to C++ volatile read / write 
+
+
+        //  Example: Gap buffer
         //  <>
     }
     moving_into_outOf_memory();
@@ -441,6 +495,15 @@ fn example_raw_pointers()
 
     fn panic_safely_in_unsafe_code()
     {
+        //  The 'panic!()' macro is not an unsafe feature
+
+        //  A type's invariants may not necessarily be upheld midway through a call to one of its methods
+        //  A panic at this point can leave the type in an inconsistent state.
+        //  (If no safe code is used, this is not UB per-say, though the type may misbehave)
+        //  (When unsafe code is involved, such violation of invariants can lead to UB)
+
+        //  Ideally, operations that may panic should be avoided when a type's invariants cannot be upheld
+
         //  <>
     }
     panic_safely_in_unsafe_code();
