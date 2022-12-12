@@ -8,6 +8,9 @@
 //  Ongoing: 2022-12-06T00:57:01AEDT 'Eg_assert_eq' using 'let' instead of 'match' (which books says should be equivalent(?))
 //  Ongoing: 2022-12-11T21:53:31AEDT book uses 'let' expression in vec! example defintion - we get an error trying to declare 'let mut v = Vec::new()' in our macro(?)
 //  Ongoing: 2022-12-11T22:00:01AEDT what 'stringify!()' can/can't do? [...] (same for 'concat!()' / <other-macros?>)
+//  Ongoing: 2022-12-12T21:27:40AEDT macro 'json!' and handling of trailing commas [...] (macro as taken from book does not support (is broken by) trailing commas)
+//  Ongoing: 2022-12-12T21:44:11AEDT when is it necessary to provide a lifetime parameter (is it possible to implement 'From<&str>' for 'Json' without one?)
+//  Ongoing: 2022-12-12T22:27:57AEDT prefixing names with '$crate' doesn't work (for macro defined in function?)
 //  }}}
 //#![feature(log_syntax)]
 //#![feature(trace_macros)]
@@ -31,11 +34,14 @@ macro_rules! func_name {
 }
 //  }}}
 
+use std::collections::HashMap;
 
 //  Macros offer functionality beyond what simple function calls can provide
 //  During compilation, a macro call is expanded into Rust code.
 //  Macro calls are denoted by an exclamation point, eg: 'println!()'
 
+//  Macros have a default recursion limit of 64
+//  Increase this with: #![recursion_limit = "256"]
 
 fn example_macro_basics()
 {
@@ -203,6 +209,127 @@ fn example_debugging_macros()
 
 fn example_json_macro()
 {
+    //  Types of macro argument fragments
+    //          Type:           Matches:                                        Can be followed by
+    //          expr            An expression                                   => , ;
+    //          stmt            An expression, not including trailing ;         => , ;
+    //                          (use expr / block instead)
+    //          ty              A type                                          => , ; = | { [ : > as where
+    //          path            A path                                          => , ; = | { [ : > as where
+    //          pat             A pattern                                       => , = | if in
+    //          item            An item                                         Anything
+    //          block           A block                                         Anything
+    //          meta            Body of an attribute                            Anything
+    //          ident           An identifier                                   Anything
+    //          tt              A token tree                                    Anything
+
+    //  A token tree is everything between a pair of brackets or quotes
+
+    #[derive(Clone, PartialEq, Debug)]
+    enum Json {
+        Null,
+        Boolean(bool),
+        Number(f64),
+        String(String),
+        Array(Vec<Json>),
+        Object(Box<HashMap<String,Json>>),
+    }
+
+    //  Example: macro for creating 'Json' values
+    macro_rules! json {
+        (null) => { 
+            Json::Null 
+        };
+        ([ $($x:tt),* ]) => { 
+            Json::Array( vec![ $(json!($x)),* ] ) 
+        };
+        ([ $($x:tt),+ , ]) => {             //  trailing comma case
+            json![ [$($x),*] ] 
+        };       
+        ({ $($k:tt : $v:tt),* }) => { 
+            //  Need to declare inner block in order to 'let' declare variables
+            {
+                let mut fields = Box::new(HashMap::new());
+                $( fields.insert($k.to_string(), json!($v)); )*
+                Json::Object(fields)
+            }
+        };
+        //  or:
+        //({ $($k:tt : $v:tt),* }) => { 
+        //    Json::Object(Box::new(vec![ $( ($k.to_string(), json!($v)) ),* ].into_iter().collect()))
+        //};
+        ({ $($k:tt : $v:tt),+ , }) => {      //  trailing comma case
+            json![ {$($k:$v),*} ] 
+        };        
+        ($x:tt) => { 
+            Json::from($x) 
+        };
+    }
+
+    //  Macros are not good at distinguishing types
+    //  To support conversion of various types to 'Json', we implement the 'From' trait for it
+    impl From<bool> for Json {
+        fn from(b: bool) -> Json { Json::Boolean(b) }
+    }
+    impl From<String> for Json {
+        fn from(s: String) -> Json { Json::String(s) }
+    }
+    impl From<&str> for Json {
+        fn from(s: &str) -> Json { Json::String(s.to_string()) }
+    }
+    //impl<'a> From<&'a str> for Json {
+    //    fn from(s: &'a str) -> Json { Json::String(s.to_string()) }
+    //}
+
+    //  Providing 'From' implementation for multiple types
+    macro_rules! impl_from_num_for_json {
+        ( $($t:ident)* ) => {
+            $(
+                impl From<$t> for Json {
+                    fn from(n: $t) -> Json { Json::Number(n as f64) }
+                }
+            )*
+        };
+    }
+    impl_from_num_for_json!(u8 i8 u16 i16 u32 i32 u64 i64 usize isize f32 f64);
+
+    assert_eq!(json!(null), Json::Null);
+    assert_eq!(json!("abc"), Json::String("abc".to_string()));
+    assert_eq!(json!( {"name": "Larry"} ), Json::Object(Box::new(vec![ ("name".to_string(), Json::String("Larry".to_string())) ].into_iter().collect())));
+
+    let students = json!([
+                         {
+                             "name": "Jim Blandy",
+                             "class_of": 1926,
+                             "major": "Tibetan throat singing",
+                         },
+                         {
+                             "name": "Jason Orendorff",
+                             "class_of": 1702,
+                             "major": "Knots",
+                         },
+    ]);
+
+    println!("students=({:?})", students);
+
+    //  Our 'json!()' macro uses Box / HashMap / Json (and will not work if used in a scope where all of these are not visible)
+
+    //  Rust macros are hygenic
+    //  That is, variable names declared in the macro are renamed so as to not conflict with variables passed as argument
+    //  This prevents macros from accessing variables from the callers scope - any variables needed by the macro should be passed to it as arguments
+
+
+    //  Importing / exporting macros
+    //  Within a crate:
+    //      Macros that are visible in a module are visible in its child modules
+    //      Use '#[macro_use]' attribute to export a macro from a module into its parent
+    //  Between crates:
+    //      Use '#[macro_use]' to import modules from another crate
+    //      use '#[macro_export]' to export modules from a crate
+
+    //  A macro should use absolute paths to any names it uses
+    //  With a macro '$crate' expands to the absolute path of the root module of the crate where the macro is defined 
+    //  <(Use '$crate' to prefix any names used in the macro to ensure the macro works in different scopes)>
 
 
     println!("{}, DONE", func_name!());
