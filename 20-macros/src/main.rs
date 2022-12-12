@@ -9,6 +9,8 @@
 //  Ongoing: 2022-12-11T21:53:31AEDT book uses 'let' expression in vec! example defintion - we get an error trying to declare 'let mut v = Vec::new()' in our macro(?)
 //  Ongoing: 2022-12-11T22:00:01AEDT what 'stringify!()' can/can't do? [...] (same for 'concat!()' / <other-macros?>)
 //  }}}
+//#![feature(log_syntax)]
+//#![feature(trace_macros)]
 #![allow(unused)]
 #![allow(non_snake_case)]
 #![allow(non_camel_case_types)]
@@ -28,6 +30,7 @@ macro_rules! func_name {
     }};
 }
 //  }}}
+
 
 //  Macros offer functionality beyond what simple function calls can provide
 //  During compilation, a macro call is expanded into Rust code.
@@ -172,7 +175,27 @@ fn example_built_in_macros()
 
 fn example_debugging_macros()
 {
-    //  
+    //  Rust provides various tools for debugging macros
+    //  (requires Rust nightly as of stable-1.65.0)
+
+    //  (Toggle rust nightly)
+    //          rustup default nightly
+    //          rustup default stable
+
+    //  To view the source of a package with all macros expanded:
+    //          cargo rustc --profile=check -- -Zunpretty=expanded
+    //  To view the source of a file with all macros expanded:
+    //          rustc -Zunpretty=expanded <file>
+
+    //  Use the 'log_syntax!()' macro to print arguments at compile time
+    //          #![feature(log_syntax)]
+    //          log_syntax!("asdf\n");
+
+    //  To log all macro calls at compile time:
+    //          #![feature(trace_macros)]
+    //          trace_macros!(true);
+    //          <macros>
+    //          trace_macros!(false);
 
     println!("{}, DONE", func_name!());
 }
@@ -180,6 +203,8 @@ fn example_debugging_macros()
 
 fn example_json_macro()
 {
+
+
     println!("{}, DONE", func_name!());
 }
 
