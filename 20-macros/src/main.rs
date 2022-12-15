@@ -34,6 +34,8 @@ macro_rules! func_name {
 }
 //  }}}
 
+//  Continue: 2022-12-15T22:44:15AEDT procedural macros, types/examples
+
 use std::collections::HashMap;
 
 //  Macros offer functionality beyond what simple function calls can provide
@@ -314,7 +316,7 @@ fn example_json_macro()
 
     //  Our 'json!()' macro uses Box / HashMap / Json (and will not work if used in a scope where all of these are not visible)
 
-    //  Rust macros are hygenic
+    //  Rust macros are hygienic
     //  That is, variable names declared in the macro are renamed so as to not conflict with variables passed as argument
     //  This prevents macros from accessing variables from the callers scope - any variables needed by the macro should be passed to it as arguments
 
@@ -331,19 +333,76 @@ fn example_json_macro()
     //  With a macro '$crate' expands to the absolute path of the root module of the crate where the macro is defined 
     //  <(Use '$crate' to prefix any names used in the macro to ensure the macro works in different scopes)>
 
-
     println!("{}, DONE", func_name!());
 }
 
 
 fn example_avoiding_matching_syntax_errors()
 {
+    //  <(If Rust attempts to match an expression to an 'expr' variable, it will trigger a syntax error and fail to consider further cases (even if the intended case was the intended match)
+
+    //  Example: The call attempts to match the first expression, triggering a syntax error
+    //  (therefore failing to move onto the second rule as expected)
+    //macro_rules! complain {
+    //    ($msg: expr) => { println!("complain 1: {}", $msg); };
+    //    (user: $userid:tt, $msg: expr) => { println!("complain 2, {}: {}", $userid, $msg); };
+    //}
+    //complain!(user: "Jim", "The Chatbot keeps picking on me");
+
+    //  Alternatives:
+
+    //  1)  Make every macro start with an identifier 
+    macro_rules! complain2 {
+        (msg: $msg: expr) => { println!("complain 1: {}", $msg); };
+        (user: $userid:tt, $msg: expr) => { println!("complain 2, {}: {}", $userid, $msg); };
+    }
+    complain2!(user: "Jim", "The Chatbot keeps picking on me");
+
+    //  2)  (Or) place the more specific 'user' match case first
+    macro_rules! complain3 {
+        (user: $userid:tt, $msg: expr) => { println!("complain 2, {}: {}", $userid, $msg); };
+        ($msg: expr) => { println!("complain 1: {}", $msg); };
+    }
+    complain3!(user: "Jim", "The Chatbot keeps picking on me");
+
     println!("{}, DONE", func_name!());
 }
 
 
 fn example_procedural_macros()
 {
+    //  See 'The Little Book of Rust Macros' for advanced macro_rules! programming
+
+    //  Rust 1.15 introduces procedural macros
+    //  They are provided for extending the Rust compiler
+    //  A 'procedural' macro is implemented as a Rust function
+    //  These functions receive and produce Rust syntax 
+
+    //  LINK: https://doc.rust-lang.org/reference/procedural-macros.html
+    //  {{{
+    //  Procedural macros come in 3 forms
+    //      Function-like:      custom!(...)
+    //      Derive:             #[derive(CustomDerive)]
+    //      Attribute:          #[CustomAttribute]
+
+    //  As functions, they either return syntax, panic, (or loop endlessly)
+    //  These run during complilation (with access to the same resources as the compiler)
+    //  Procedural macros are unhygenic
+
+    //  Procedural macros almost always link to the (compiler provided) 'proc_macro' crate
+    //  <>
+
+    //  Function like procedural macros:
+    //  <>
+
+    //  Derive macros procedural macros:
+    //  <>
+
+    //  Attribute Macros procedural macros:
+    //  <>
+
+    //  }}}
+
     println!("{}, DONE", func_name!());
 }
 
