@@ -9,6 +9,9 @@
 //  {{{
 //  Ongoing: 2023-01-19T20:27:43AEDT added to cheatsheet 'Rust' (not finished, update document when this is finished)
 //  Ongoing: 2023-01-18T00:48:59AEDT 'Arc<T>' is like 'shared_ptr<T>' (implying 'Rc<T>' is not)) [...] (actually - 'shared_ptr<T>' is akin to 'Arc<Mutex<T>>'(?))
+//  Ongoing: 2023-01-20T01:35:26AEDT move 'RefCell' before 'Cell' (after as a commit not involving changes to either(?))
+//  Ongoing: 2023-01-20T01:36:11AEDT (I'm sure there are) missing (key) actions/operations for some wrappers(?)
+//  Ongoing: 2023-01-20T01:38:18AEDT difference between Ref<T> and &T(?)
 //  }}}
 //  macro: get_func_name
 //  {{{
@@ -27,6 +30,11 @@ macro_rules! get_func_name {
     }};
 }
 //  }}}
+use std::rc::Rc;
+use std::cell::RefCell;
+
+//  Continue: 2023-01-20T01:48:16AEDT programming-rust, wrapper-types, uses for each wrapper (with labeling '&mut T' (as used in RefCell)
+//  Continue: 2023-01-20T01:48:51AEDT programming-rust, wrapper-types, 'Ref<T>'
 
 //  LINK: https://manishearth.github.io/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/
 
@@ -36,6 +44,13 @@ fn example_pointer_types()
     //  Box<T>
     //  Owned pointer, can hand out borrowed references (but is only owner) 
     //  <(Simplest)> way to allocate memory on heap, subject to compile time borrow checking
+    //  Create:                 Box::new(object)
+    //  Dereference:            *foo            foo.method()
+    //  Borrow reference:       foo.as_ref()    foo.as_mut()
+    //  Move-out:               x = *foo
+    //  Move:                   x = foo
+    //  Clone:                  foo.clone()
+    let x = Box::new( Vec::<i32>::new() );
 
 
     //  &T and &mut T
@@ -62,6 +77,13 @@ fn example_pointer_types()
     //      Not thread safe
     //      Allows cycles to be introduced
     //  Clone will increment reference count and return copy (instead of deep copying)
+    //  Dereference:            *foo                                foo.method()
+    //  Borrow reference:       foo.as_ref()                        <(cannot 'foo.as_mut()')>
+    //  Clone-value:            x = foo.clone()                     
+    //  Copy-value:             x = *foo 
+    //  Move:                   x = foo
+    //  Move-out:               <(impossible?)>
+
 
 
     //  Weak<T>
@@ -92,13 +114,19 @@ fn example_cell_types()
     //      Shared mutability can cause logic errors
     //  <()>
     //  Example: x/y/z are immutable containers whose contents we can mutate
-    let x: Cell<i32> = Cell::new(1);
+    let mut x: Cell<i32> = Cell::new(1);
     let y: &Cell<i32> = &x;
     let z: &Cell<i32> = &x;
     x.set(3);
     y.set(4);
     z.set(5);
     println!("x=({})", x.get());
+    //  Dereference:        <(impossible?)>             
+    //  Borrow value:       <(impossible?)>
+    //  Borrow pointer:     foo.as_ptr()                <(no 'foo.as_mut_ptr()'?)>
+    //  Copy-in:            foo.insert(x)
+    //  Copy-out:           x = foo.get()
+    //  Move-out:           x = foo.get_mut()
 
 
     //  RefCell<T>
@@ -112,6 +140,16 @@ fn example_cell_types()
     //  Cost:
     //      Borrow state refcount overhead
     //      Not thread-safe
+    //  Ref<'_,T>:          foo.borrow()                
+    //  RefMut<'_,T>:       foo.borrow_mut()
+    //  Result<&T>:         foo.try_borrow_unguarded()  [unsafe]
+    //  &mut T:             foo.get_mut()
+    //  *mut T:             foo.as_ptr()
+    //  <('borrow_mut()' vs 'get_mut()')>
+
+
+    //  Ref<T>
+    //  <()>
 
     println!("{}: DONE", get_func_name!());
 }
