@@ -7,6 +7,7 @@
 #![allow(non_camel_case_types)]
 //  Ongoings:
 //  {{{
+//  Ongoing: 2023-01-19T20:27:43AEDT added to cheatsheet 'Rust' (not finished, update document when this is finished)
 //  Ongoing: 2023-01-18T00:48:59AEDT 'Arc<T>' is like 'shared_ptr<T>' (implying 'Rc<T>' is not)) [...] (actually - 'shared_ptr<T>' is akin to 'Arc<Mutex<T>>'(?))
 //  }}}
 //  macro: get_func_name
@@ -26,8 +27,6 @@ macro_rules! get_func_name {
     }};
 }
 //  }}}
-
-//  Continue: 2023-01-18T01:02:24AEDT complete article
 
 //  LINK: https://manishearth.github.io/blog/2015/05/27/wrapper-types-in-rust-choosing-your-guarantees/
 
@@ -92,7 +91,7 @@ fn example_cell_types()
     //      Can be used to violate Rust safety/invariants
     //      Shared mutability can cause logic errors
     //  <()>
-    //  (note that neither x/y/z are mutable)
+    //  Example: x/y/z are immutable containers whose contents we can mutate
     let x: Cell<i32> = Cell::new(1);
     let y: &Cell<i32> = &x;
     let z: &Cell<i32> = &x;
@@ -113,7 +112,7 @@ fn example_cell_types()
     //  Cost:
     //      Borrow state refcount overhead
     //      Not thread-safe
-    
+
     println!("{}: DONE", get_func_name!());
 }
 
@@ -136,12 +135,24 @@ fn example_syncronous_types()
 
 
     //  Mutex<T>
+    //  Provide mutual-exclusion via RAII guards
+    //  Full lock for reading and writing
+    //
     //  RwLock<T>
-    //  <()>
+    //  Provide mutual-exclusion via RAII guards
+    //  Efficient for multiple reads 
+    //  Always safe to have multiple readers if there are no writers
+    //
+    //  Guarantees:
+    //      Safe shared mutability across threads
+    //  Cost:
+    //      Atomic instruction overhead
+    //      Can incur deadlocks
 
 
     //  UnsafeCell<T>
-    //  <()>
+    //  'RefCell' with safety checks removed
+    //  (compiler primitive used to implement 'Cell' / 'RefCell')
 
     println!("{}: DONE", get_func_name!());
 }
@@ -149,16 +160,13 @@ fn example_syncronous_types()
 
 fn example_wrapper_composition()
 {
-    //  Rc<RefCell<T>>
-    //  <()>
+    //  Wrapper composition
 
+    //  Rc<RefCell<T>>
+    //  Provides shared ownership with mutability of 'T'
 
     //  Arc<Mutex<T>>
-    //  <()>
-
-
-    //  Rc<RefCell<Vec<T>>> vs Rc<Vec<RefCell<T>>>
-    //  <()>
+    //  Provides shared mutability and ownership.
 
     println!("{}: DONE", get_func_name!());
 }
