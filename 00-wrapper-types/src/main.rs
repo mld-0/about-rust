@@ -145,6 +145,8 @@ fn example_cell_types()
     //  Result<&T>:         foo.try_borrow_unguarded()  [unsafe]
     //  &mut T:             foo.get_mut()
     //  *mut T:             foo.as_ptr()
+    //  &T:                 unsafe { &*foo.as_ptr() }
+    //  &mut T:             unsafe { &mut *foo.as_ptr() }
     //  <('borrow_mut()' vs 'get_mut()')>
 
 
