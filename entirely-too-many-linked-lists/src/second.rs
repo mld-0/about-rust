@@ -22,12 +22,12 @@
 //  Ongoing: 2023-01-24T23:29:08AEDT claim: we learned 'Iterator::<Iter>::next()' is incorrect when writing 'Iterator::<IterMut>::next()' (former is only valid where T is a copy type?) - (but, final code for second lesson does not address this) ... (does 'iter()' work for non-Copy T types?) [...] (or, are they saying Option<&T> is copy even if T isn't?)
 //  Ongoing: 2023-01-24T23:32:33AEDT (how to) designate a custom type as non-copy?
 //  Ongoing: 2023-01-24T23:39:22AEDT claim, same technique (consuming elements with '.take()') can be used to generate a safe IterMut for a tree
+//  Ongoing: 2023-01-25T00:00:30AEDT Rust function/macro 'is_type_copy(T)' / 'is_type_copy<T>()'
 //  }}}
 use std::mem;
 
 //  Continue: 2023-01-24T03:14:05AEDT 'option.take().map(|x| f(x))' is an idiom(?) (only execute 'f(x)' (on 'option's value if option is not none?) [...] (the idiom is caling '.map()' on None?)
 //  Continue: 2023-01-24T23:00:24AEDT when is it necessary to provide lifetime parameters?
-//  Continue: 2023-01-24T23:32:14AEDT test with non-copy types
 
 
 //  Second Exercise: <(Beginning with copy of first)>
@@ -242,6 +242,19 @@ mod test {
         assert_eq!(list.pop(), Some(4));
         assert_eq!(list.pop(), Some(1));
         assert_eq!(list.pop(), None);
+        let mut list = List::new();
+        assert_eq!(list.pop(), None);
+        list.push(vec![1]);
+        list.push(vec![2]);
+        list.push(vec![3]);
+        assert_eq!(list.pop(), Some(vec![3]));
+        assert_eq!(list.pop(), Some(vec![2]));
+        list.push(vec![4]);
+        list.push(vec![5]);
+        assert_eq!(list.pop(), Some(vec![5]));
+        assert_eq!(list.pop(), Some(vec![4]));
+        assert_eq!(list.pop(), Some(vec![1]));
+        assert_eq!(list.pop(), None);
     }
 
     #[test]
@@ -263,10 +276,34 @@ mod test {
         list.peek_mut().map(|x| { *x = 42 });
         assert_eq!(list.peek(), Some(&42));
         assert_eq!(list.peek_mut(), Some(&mut 42));
+
+        let mut list = List::new();
+        assert_eq!(list.peek(), None);
+        assert_eq!(list.peek_mut(), None);
+        list.push(vec![1]); list.push(vec![2]); list.push(vec![3]);
+        assert_eq!(list.peek(), Some(&vec![3]));
+        assert_eq!(list.peek_mut(), Some(&mut vec![3]));
+        list.peek_mut().map(|x| { *x = vec![42] });
+        assert_eq!(list.peek(), Some(&vec![42]));
+        assert_eq!(list.peek_mut(), Some(&mut vec![42]));
+
     }
 
     #[test]
     fn into_iter() {
+        let mut list = List::new();
+        list.push(vec![1]); list.push(vec![2]); list.push(vec![3]);
+        let mut iter = list.into_iter();
+        assert_eq!(iter.next(), Some(vec![3]));
+        assert_eq!(iter.next(), Some(vec![2]));
+        assert_eq!(iter.next(), Some(vec![1]));
+        assert_eq!(iter.next(), None);
+        let mut list = List::new();
+        list.push(vec![1]); list.push(vec![2]); list.push(vec![3]);
+        let vals = vec![vec![3],vec![2],vec![1]];
+        for (x,check) in list.into_iter().zip(vals.into_iter()) {
+            assert_eq!(x, check);
+        }
         let mut list = List::new();
         list.push(1); list.push(2); list.push(3);
         let mut iter = list.into_iter();
@@ -291,6 +328,13 @@ mod test {
         assert_eq!(iter.next(), Some(&2));
         assert_eq!(iter.next(), Some(&1));
         assert_eq!(iter.next(), None);
+        let mut list = List::new();
+        list.push(vec![1]); list.push(vec![2]); list.push(vec![3]);
+        let mut iter = list.iter();
+        assert_eq!(iter.next(), Some(&vec![3]));
+        assert_eq!(iter.next(), Some(&vec![2]));
+        assert_eq!(iter.next(), Some(&vec![1]));
+        assert_eq!(iter.next(), None);
     }
 
     #[test]
@@ -301,6 +345,13 @@ mod test {
         assert_eq!(iter.next(), Some(&mut 3));
         assert_eq!(iter.next(), Some(&mut 2));
         assert_eq!(iter.next(), Some(&mut 1));
+        assert_eq!(iter.next(), None);
+        let mut list = List::new();
+        list.push(vec![1]); list.push(vec![2]); list.push(vec![3]);
+        let mut iter = list.iter_mut();
+        assert_eq!(iter.next(), Some(&mut vec![3]));
+        assert_eq!(iter.next(), Some(&mut vec![2]));
+        assert_eq!(iter.next(), Some(&mut vec![1]));
         assert_eq!(iter.next(), None);
     }
 
