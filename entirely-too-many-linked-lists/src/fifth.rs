@@ -23,6 +23,10 @@
 //  Ongoing: 2023-01-31T22:23:45AEDT 'arr[..]' slicing notation?
 //  Ongoing: 2023-01-31T22:25:07AEDT (there must be better examples for split_at_mut / as_mut_ptr?)
 //  Ongoing: 2023-01-31T22:28:27AEDT this exercise contains a lot of "I think" and "I don't know" for a guy who wrote a book on Rust UB?
+//  Ongoing: 2023-02-01T00:34:48AEDT Rust, arrays vs slices: the length of an array is known at compile time (whereas that of a slice is not) ... ([T;n] = array of length n, &[T;n] = reference to array, [T] = slice (can only be used through indirection), &[T] = slice (fat pointer including length) ... ([T] / &[T] are both called a slice?)), &[T;n] can coerce to &[T]
+//  Ongoing: 2023-02-01T00:53:03AEDT modifying data through a shared reference is (always?) undefined?
+//  Ongoing: 2023-02-01T00:57:56AEDT stacked borrow - more concise defintion / list of what not to do
+//  Ongoing: 2023-02-01T01:01:33AEDT 'immutable reference' is a much more <meaningful/descriptive> term than 'shared reference'(?)
 //  }}}
 use std::mem;
 use std::ptr;
@@ -245,8 +249,8 @@ fn example_UB_array_pointers()
 
     //  <(Splitting an array turns a borrow stack into a borrow tree)>
 
-    //  'split_at_mut()'
-    //  <()>
+    //  'split_at_mut(&mut self, mid: usize) -> (&mut [T], &mut [T])'
+    //  Divide one mutable slice into two at an index: [0,mid) and [mid,len)
     unsafe {
         let mut data = [0; 10];
         let s1 = &mut data[..];
@@ -264,9 +268,8 @@ fn example_UB_array_pointers()
         assert_eq!(data[2], 0);
     }
 
-    //  'as_mut_ptr()'
-    //  <(only correct for given order of reference/pointer useage?)>
-    //  <()>
+    //  'as_mut_ptr(&mut self) -> *mut T'
+    //  Get a mutable pointer to the underlying buffer
     unsafe {
         let mut data = [0; 10];
         let s1_all = &mut data[..];
@@ -287,13 +290,14 @@ fn example_UB_array_pointers()
         }
         assert_eq!(data, [8,12,4,6,8,10,12,14,16,18]);
     }
-
 }
 
 
 #[test]
 fn example_UB_shared_references()
 {
+    //  Using a shared reference to modify a value is undefined
+    //  Once a shared reference is pushed onto the borrow stack, everything on top of it can only be shared
 }
 
 
@@ -311,6 +315,7 @@ fn example_UB_Box()
 
 //  Example: valid implementation as per tests, UB as per Miri
 //  {{{
+//  <(whenever we use Box, we invalidate any pointers to its contents?)>
 type UBLink<T> = Option<Box<UBNode<T>>>;
 pub struct UBList<T> {
     head: UBLink<T>,
@@ -399,6 +404,10 @@ impl<T> UBList<T> {
 //  }}}
 
 
+//  Contention: when using raw pointers, try to *only* use raw pointers
+//  Mixing safe and raw pointers is a recipe for UB
+//  (Accessing a container by-val/ref invalidates any pointers to its contents) (even though program that does may still work (making testing with Miri essential for any code that uses unsafe))
+//  Since raw pointers are null-able, they do not need to be wrapped in Option
 
 type Link<T> = *mut Node<T>;
 pub struct List<T> {
