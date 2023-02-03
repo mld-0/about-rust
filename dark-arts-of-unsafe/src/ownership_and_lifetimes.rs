@@ -14,6 +14,9 @@
 //  Ongoing: 2023-02-03T21:56:07AEDT (clarify) "this will eventually get fixed" refers to 'get_default' "Improperly reduced borrows" example and not 'Foo' "Limits of lifetime" example(?)
 //  Ongoing: 2023-02-03T22:12:33AEDT "limits_of_lifetimes", implementation of 'mutate_and_share' / 'share' which works for example 'Foo'?
 //  Ongoing: 2023-02-03T22:14:26AEDT "limits_of_lifetimes", *when* (and if) we can expect 'get_default()' example to (as contented) "eventually be fixed"?
+//  Ongoing: 2023-02-03T23:09:05AEDT meaning of "formal arguments"?
+//  Ongoing: 2023-02-03T23:16:30AEDT where lifetimes are called for in function signatures ((all?) input/output references?)
+//  Ongoing: 2023-02-03T23:22:18AEDT "lifetime_elision", 'Equivalent' examples with function bodies?
 //  }}}
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -204,5 +207,53 @@ fn limits_of_lifetimes()
             map.get_mut(&key).unwrap()
         }
     }
+}
+
+#[test]
+fn lifetime_elision()
+{
+    //  A lifetime position is anywhere lifetimes can be written in a type
+    //          &'a T
+    //          &'a mut T
+    //          T<'a>
+
+    //  Lifetime positions can be either "input" or "output":
+    //
+    //  For function definitions/types, and traits Fn/FnMut/FnOnce, input refers to the types of the formal arguments, and output refers to result types.
+    //  (note that input positions of a fn method definition do not include the lifetime traits that occur in the method's impl header (or trait header))
+    //  
+    //  For impl headers, all types are input
+
+
+    //  Elison rules:
+    //      - Each elided lifetime in input position becomes a distinct lifetime parameter
+    //      - If there is only one input lifetime, it is assigned to all elided output lifetimes
+    //      - If 'self' is an input, then its lifetime is assigned to all elided output lifetimes
+    //      - Otherwise it is an error to elide an output lifetime
+
+
+    //  Equivalent:
+//  fn print(s: &str);
+//  fn print<'a>(s: &'a str);
+//
+//  fn debug(lvl: usize, s: &str);
+//  fn debug<'a>(lvl: usize, s: &'a str);
+//
+//  fn substr(s: &str, until: usize) -> &str;
+//  fn substr<'a>(s: &'a str, until: usize) -> &'a str;
+//  
+//  fn get_mut(&mut self) -> &mut T;
+//  fn get_mut<'a>(&'a mut self) -> &'a mut T;
+//
+//  fn args<T: ToCStr>(&mut self, args: &[T]) -> &mut Command;
+//  fn args<'a, 'b, T: ToCStr>(&'a mut self, args: &'b [T]) -> &'a mut Command;
+//
+//  fn new(buf: &mut [u8]) -> BufWriter;
+//  fn new(buf: &mut [u8]) -> BufWriter<'_>;            //  <(2018 rust idioms)>
+//  fn new<'a>(buf: &'a mut [u8]) -> BufWriter<'a>;
+
+    //  Invalid:
+//  fn get_str() -> &str;
+//  fn frob(s: &str, t: &str) -> &str;
 }
 
