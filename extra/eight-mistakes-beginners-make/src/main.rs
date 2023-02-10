@@ -7,6 +7,13 @@
 //  Ongoing: 2023-02-09T22:44:03AEDT when are enums Copy?
 //  Ongoing: 2023-02-09T22:44:43AEDT match 'or' uses single '|'?
 //  Ongoing: 2023-02-09T23:33:38AEDT 'array_window()' <of/over> N elements?
+//  Ongoing: 2023-02-10T21:56:23AEDT 'open_and_parse_file()' -> what is the idomatic way to handle multiple error types and the '?' operator?
+//  Ongoing: 2023-02-10T22:01:30AEDT implicit conversion (when does 'std::convert::From' get used implicitly?)
+//  Ongoing: 2023-02-10T22:08:29AEDT rewriting 'Point::from_str()' to have more meaningful error messages for incorrect input ... (what is the current error for that thing you gave me doesn't have enough components when split by ',' ... given we use 'let y = coords[1].parse::<i32>()?' are we handling it at all (does out of bounds exception get propogated by '?'?))
+//  Ongoing: 2023-02-10T22:12:54AEDT Need to 'use std::str::FromStr' before we can call 'Point::from_str()' -> anyway to call it without the former?
+//  Ongoing: 2023-02-10T23:27:51AEDT (lambdas and) keyword 'move'?
+//  Ongoing: 2023-02-10T23:42:46AEDT cleaner alternative to 'self.callback.as_ref().unwrap()(damage_recieved)'?
+//  Ongoing: 2023-02-10T23:46:06AEDT clippy has no suggestions for either of our Monsters examples?
 //  }}}
 #![allow(unused)]
 #![allow(non_snake_case)]
@@ -33,11 +40,75 @@ macro_rules! get_func_name {
 }
 //  }}}
 
-//  Continue: 2023-02-09T23:33:13AEDT complete article
 //  Continue: 2023-02-09T23:07:32AEDT complete 'Error' implementation for custom error (manually / "This Error" crate)
 
 //  8 deadly mistakes beginner Rust developers make
 //  LINK: https://www.youtube.com/watch?v=PbR4ECFIckg 
+
+//  (Blog post from which video is appropriated)
+//  LINK: https://adventures.michaelfbryan.com/posts/rust-best-practices/bad-habits/
+//  {{{
+
+//  Avoid hungarian notation:
+//  (don't be afraid to use shadowing / reuse varnames when converting same data between types)
+//  (contention: shadowing isn't a problem in statically typed languages)
+
+//  Don't use wrong integer type:
+//  (Rust <strongly> prefers usize over isize for indexing (and so should you))
+
+//  Unsafe:
+//  Not a magic escape hatch to allow C programs with rust syntax
+//  Should not be used without a good understanding of Rust's memory model
+
+//  Not using namespaces:
+//          Bad         rune_wasmer_runtime_load()
+//          Good        rune::wasmer::Runtime::load()
+
+//  Overusing slice indexing:
+//  Creates opertunities for mistakes
+//  Iterators can oftern be better optimized
+
+//  Overusing iterators:
+//  Sometimes, indexing makes for a more readable solution
+
+//  Initalize during construction:
+//  The constructor output should be a usable object - make invalid states unrepresentable
+//  Bad:
+//          let mut dict = Dictionary::new()
+//          dict.load_from_file("./words.txt")
+//  Good:
+//          let dict = Dictionary::load_from_file("./words.txt")
+
+//  }}}
+
+//  Common newbie mistakes or bad practices
+//  LINK: https://users.rust-lang.org/t/common-newbie-mistakes-or-bad-practices/64821
+//  {{{
+
+//  Strings are not paths: use &Path / join() instead of &str / format!("{}/{}",dir,filename)
+
+//  Use: 'fn parse(reader: impl std::io::Read)' instead of 'fn parse(filename: &str)'
+
+//  Arrays coerce to slices, use: 'f(&array)' instead of 'f(&array[..])' 
+
+//  Adding '&Foo' to a struct (and getting stuck in borrow-checker hell) when really the struct should own Foo
+
+//  <(Use the non-panicking counterparts to 'args()' / 'vars()')>
+
+//  Avoid matched trait-struct pairs: 'impl IFoo for Foo'
+
+//  avoid '#[path]'
+
+//  Prefer 'read_exact()' / 'write_all()' to 'Read::read()' / 'Write::write()'
+
+//  Don't put IO resources into mutexes / containers
+
+//  Use 'structopt' (/similar) instead of parsing arguments manually (or even configuring 'clap' manually)
+
+//  <(contention: don't overuse 'From' for type conversions?)>
+
+//  }}}
+
 
 fn one_unneccessary_indirection()
 {
@@ -244,28 +315,210 @@ fn sixth_standard_library_traits()
     }
     
 
+    //  Example: defining a custom error type with conversions to use with '?' operator
     enum CliError {
         IoError(std::io::Error),
         ParseError(std::num::ParseIntError),
     }
+    impl From<std::io::Error> for CliError {
+        fn from(error: std::io::Error) -> Self {
+            CliError::IoError(error)
+        }
+    }
+    impl From<std::num::ParseIntError> for CliError {
+        fn from(error: std::num::ParseIntError) -> Self {
+            CliError::ParseError(error)
+        }
+    }
+    fn read_int_in_file(filename: &str) -> Result<i32, CliError> {
+        let mut content = std::fs::read_to_string(filename)?;
+        let num: i32 = content.trim().parse()?;
+        Ok(num)
+    }
 
+
+    //  'trim_matches()'
+    //  <>
+
+
+    //  'std::str::FromStr' defines conversion from Strings
+    pub trait Eg_FromStr: Sized {
+        type Err;
+        fn from_str(s: &str) -> Result<Self, Self::Err>;
+    }
+
+    #[derive(Debug, PartialEq)]
+    struct Point {
+        x: i32,
+        y: i32,
+    }
+    impl std::str::FromStr for Point {
+        type Err = std::num::ParseIntError;
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            let coords: Vec<&str> = s
+                .trim_matches(|p| p == '(' || p == ')')
+                .split(",")
+                .collect();
+            let x = coords[0].parse::<i32>()?;
+            let y = coords[1].parse::<i32>()?;
+            Ok(Point { x, y, })
+        }
+    }
+
+    //  Need to bring 'FromStr' into scope to call 'Point::from_str()'
+    use std::str::FromStr;
+    let p = Point::from_str("(1,2)");
+    assert_eq!(p.unwrap(), Point { x: 1, y: 2, });
 
     println!("{}, DONE", get_func_name!());
 }
 
 
-fn seven()
+fn seven_standard_library_macros()
 {
+    //  'std::todo' indicates unfinished code
+    //  (attempting to call results in runtime panic)
+    fn unfinished() {
+        todo!();
+    }
+
+
+    //  'std::concat' concatnates literals into a static string slice
+    let s = concat!("test", 10, 'b', true);
+    assert_eq!(s, "test10btrue");
+
+
+    //  'std::format' creates a String using interpolation of runtime expressions
+    let s1 = "hello".to_string();
+    let s2 = "world";
+    let s3 = format!("{} {}!", s1, s2);
+    assert_eq!(s3, "hello world!");
+
+    println!("{}, DONE", get_func_name!());
 }
 
 
-fn eight()
+fn eight_tooling()
 {
+    //  #>$ cargo fmt
+    //  Format code, run command in project directory
+    //  run within vim: '%! rustfmt'
+
+    //  cargo clippy
+    //  Linter, run in project directory
 }
 
 
 fn bonus()
 {
+    use rand::Rng;
+    use std::rc::Rc;
+    use std::cell::RefCell;
+
+    //  Rc<RefCell<T>> is a Rust idiom to provide multiple mutable references to something
+    //  It can be used to replicate code from other languages, but its use oftern indicates bad design
+
+    //  Bad Design:
+    {
+        struct Monster {
+            health: u32,
+            //recieved_damaged: Vec<Box<dyn Fn(u32)>>,
+            callback: Option<Box<dyn Fn(u32)>>,
+        }
+        impl Monster {
+            fn take_damage(&mut self, amount: u32) {
+                let damage_recieved = std::cmp::min(self.health, amount);
+                self.health -= damage_recieved;
+                if self.callback.is_some() {
+                    self.callback.as_ref().unwrap()(damage_recieved);
+                }
+            }
+            fn add_callback(&mut self, callback: Box<dyn Fn(u32)>) {
+                self.callback = Some(callback);
+            }
+        }
+        impl Default for Monster {
+            fn default() -> Self {
+                Monster { health: 100, callback: None, }
+            }
+        }
+        #[derive(Default)]
+        struct DamageCounter {
+            damage_inflicted: u32,
+        }
+        impl DamageCounter {
+            fn reached_target_damage(&self) -> bool {
+                self.damage_inflicted > 100
+            }
+            fn on_damage_recieved(&mut self, damage: u32) {
+                self.damage_inflicted += damage;
+            }
+        }
+
+        let mut rng = rand::thread_rng();
+        let mut counter = Rc::new(RefCell::new(DamageCounter::default()));
+        let mut monsters: Vec<_> = (0..5).map(|_| Monster::default()).collect();
+        for monster in &mut monsters {
+            let counter = Rc::clone(&counter);
+            monster.add_callback(Box::new(
+                    move |x| counter.borrow_mut().on_damage_recieved(x)
+            ));
+        }
+        println!("Run Monsters:");
+        while !counter.borrow().reached_target_damage() {
+            let index = rng.gen_range(0..monsters.len());
+            let target = &mut monsters[index];
+            let damage = rng.gen_range(0..50);
+            target.take_damage(damage);
+            println!("Monster {} recieved {} damage", index, damage);
+        }
+    }
+
+
+    //  Better Design: don't hold long-lived reference to other objects
+    {
+        struct Monster {
+            health: u32,
+        }
+        impl Monster {
+            fn take_damage(&mut self, amount: u32, callback: impl FnOnce(u32)) {
+                let damage_recieved = std::cmp::min(self.health, amount);
+                self.health -= damage_recieved;
+                callback(damage_recieved);
+            }
+        }
+        impl Default for Monster {
+            fn default() -> Self {
+                Monster { health: 100 }
+            }
+        }
+        #[derive(Default)]
+        struct DamageCounter {
+            damage_inflicted: u32,
+        }
+        impl DamageCounter {
+            fn reached_target_damage(&self) -> bool {
+                self.damage_inflicted > 100
+            }
+            fn on_damage_recieved(&mut self, damage: u32) {
+                self.damage_inflicted += damage;
+            }
+        }
+
+        let mut rng = rand::thread_rng();
+        let mut counter = DamageCounter::default();
+        let mut monsters: Vec<_> = (0..5).map(|_| Monster::default()).collect();
+        println!("Run Monsters:");
+        while !counter.reached_target_damage() {
+            let index = rng.gen_range(0..monsters.len());
+            let target = &mut monsters[index];
+            let damage = rng.gen_range(0..50);
+            target.take_damage(damage, |x| counter.on_damage_recieved(x));
+            println!("Monster {} recieved {} damage", index, damage);
+        }
+    }
+    //  Provide the callback function as argument to 'Monster::take_damage()' instead of trying to store it in 'Monster' objects
+
 }
 
 
@@ -277,8 +530,8 @@ fn main()
     four_enums_and_pattern_matching();
     five_error_handling();
     sixth_standard_library_traits();
-    seven();
-    eight();
+    seven_standard_library_macros();
+    eight_tooling();
     bonus();
 }
 
