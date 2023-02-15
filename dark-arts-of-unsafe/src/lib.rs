@@ -1,5 +1,5 @@
-pub mod meet_unsafe;
-pub mod data_layout;
-pub mod ownership_and_lifetimes;
-pub mod type_conversions;
+pub mod meet_unsafe;                    //  ch01
+pub mod data_layout;                    //  ch02
+pub mod ownership_and_lifetimes;        //  ch03
+pub mod type_conversions;               //  ch04
 
