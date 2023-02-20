@@ -10,12 +10,14 @@
 //  Ongoing: 2023-02-20T21:11:25AEDT <(from a previous item)> why not to implement 'From' / (alternatives?)
 //  Ongoing: 2023-02-20T21:16:22AEDT Rust, meaning of 'concrete context'? [...] (non-generic?)
 //  Ongoing: 2023-02-20T21:16:34AEDT "a type will provide a static new" -> (is this describing a convention, or some implicit factory function named 'new()'?) 
+//  Ongoing: 2023-02-20T21:47:54AEDT "If a variable has only been partially initialized, only initialized fields are dropped" -> (when this can take place? ('Foo { a: f(), b: g(), }' and 'f()' panics?))
+//  Ongoing: 2023-02-20T21:51:31AEDT 'mem::drop()' vs 'std::ptr::drop_in_place()'(?)
 //  }}}
 
 //  Continue: 2023-02-20T21:24:04AEDT complete chapter
 
 //  Resource Acquisition Is Initialization (RAII): ownership based resource management
-//  Resources are owned by a managing object, whose ctor initalizes the resource and dtor cleans it up.
+//  Resources are owned by a managing object, whose ctor initializes the resource and dtor cleans it up.
 
 #[test]
 fn constructors()
@@ -25,7 +27,7 @@ fn constructors()
     struct Unit;
 
     //  Rust does not provide constructors
-    //  To initialize an object, name it and initalize all its fields
+    //  To initialize an object, name it and initialize all its fields
     let foo = Foo { a: 0, b: 1, c: false, };
     let bar = Bar::X(0);
     let empty = Unit;
@@ -36,7 +38,7 @@ fn constructors()
 
 
     //  Implementing 'Clone' is Rust's equivalent of a copy-ctor (deep copy)
-    //  It is never implictly invoked, it must be explictly called: 'let y = x.clone()'
+    //  It is never implicitly invoked, it must be explicitly called: 'let y = x.clone()'
     pub trait Eg_Clone {
         fn clone(&self) -> Self;
     }
@@ -72,7 +74,7 @@ fn constructors()
     //  }}}
 
 
-    //  Rust allow for factory functions in place of contructors:
+    //  Rust allow for factory functions in place of constructors:
     impl Foo {
         fn new(a: u8, b: u32, c: bool) -> Self {
             Foo { a, b, c, }
@@ -95,5 +97,43 @@ fn constructors()
         }
     }
     //  <(In concrete contexts, a type will provide a static 'new' method for any kind of default ctor)>
+}
+
+
+#[test]
+fn destructors()
+{
+    //  Rust provides destructors through the 'std::ops::Drop' trait
+    trait Eg_Drop {
+        fn drop(&mut self);
+    }
+    //  This function 'drop()' is called whenever the value is dropped
+
+    //  Type that implement 'Drop' cannot be 'Copy'
+
+    //  When a value is dropped, the dtors of all its fields are called recursively
+    //  (Regardless of whether 'value' implements 'Drop')
+    //  (No way to prevent this in Rust 1.0)
+    //  (Because of this, most types do not need a custom dtor)
+
+    //  Dropping fields manually in a dtor will result in a double-free when they are dropped implicitly
+    //  (If it is necessary to do so, make the field in question Option<T>, and set it to None)
+
+    //  A value cannot call '.drop()' on itself
+    //  (Use 'mem::drop(value)' instead) <(or 'std::ptr::drop_in_place()')>
+
+    //  Drop order:
+    //      struct/enum/tuple member variables are dropped in the order they are declared
+    //      array/owned-slice elements are dropped first->last
+    //      local variables are dropped in reverse order
+    //      closure variables are dropped in an unspecified order
+
+    //  Any panic in a drop implementation will likely abort
+
+    //  <(If a variable has only been partially initialized, only initialized fields are dropped)>
+
+    //  To prevent a dtor being run:
+    //          std::mem::forget
+    //          std::mem::ManuallyDrop
 }
 
