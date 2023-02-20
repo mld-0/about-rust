@@ -12,9 +12,10 @@
 //  Ongoing: 2023-02-20T21:16:34AEDT "a type will provide a static new" -> (is this describing a convention, or some implicit factory function named 'new()'?) 
 //  Ongoing: 2023-02-20T21:47:54AEDT "If a variable has only been partially initialized, only initialized fields are dropped" -> (when this can take place? ('Foo { a: f(), b: g(), }' and 'f()' panics?))
 //  Ongoing: 2023-02-20T21:51:31AEDT 'mem::drop()' vs 'std::ptr::drop_in_place()'(?)
+//  Ongoing: 2023-02-20T22:05:34AEDT 'unsafe rust cannot rely on dtors being called' (what is meant by this? (code that <is/uses> unsafe?))
+//  Ongoing: 2023-02-20T22:30:35AEDT Failing to drop a value <that/because-it> is unreachable?
+//  Ongoing: 2023-02-20T22:49:11AEDT leaking dtor with 'mem::forget()' -> (also prevents member variables being dropped?)
 //  }}}
-
-//  Continue: 2023-02-20T21:24:04AEDT complete chapter
 
 //  Resource Acquisition Is Initialization (RAII): ownership based resource management
 //  Resources are owned by a managing object, whose ctor initializes the resource and dtor cleans it up.
@@ -51,7 +52,7 @@ fn constructors()
 
 
     //  <(Rust previously provided 'std::marker::NoCopy' as a field to make structs non-copyable)>
-    //  <(deprecated, 'structs are by default not copyable'?)>
+    //  <(deprecated, "structs are by default not copyable"?)>
     //  <(just add a dtor?)>
 
 
@@ -119,8 +120,12 @@ fn destructors()
     //  Dropping fields manually in a dtor will result in a double-free when they are dropped implicitly
     //  (If it is necessary to do so, make the field in question Option<T>, and set it to None)
 
-    //  A value cannot call '.drop()' on itself
-    //  (Use 'mem::drop(value)' instead) <(or 'std::ptr::drop_in_place()')>
+    //  A value cannot call '.drop()' on itself. Use:
+    //          mem::drop(value)
+
+    //  Or to drop a value using a pointer:
+    //          ptr::drop_in_place(p)   (unsafe) 
+    //  (needed to drop trait objects / unsized types)
 
     //  Drop order:
     //      struct/enum/tuple member variables are dropped in the order they are declared
@@ -135,5 +140,36 @@ fn destructors()
     //  To prevent a dtor being run:
     //          std::mem::forget
     //          std::mem::ManuallyDrop
+}
+
+
+#[test]
+fn leaking_destructors()
+{
+    //  Ownership based resource management simplifies composition
+
+    //  Safe Rust *generally* eliminates leaks 
+    //  <(but they can happen, especially since 'mem:forget' is safe)>
+
+    //  'mem::forget' has previously being marked as unsafe
+    //  Takes ownership of and forgets a value, without running its dtor
+    //  ('mem::ManuallyDrop' should be used instead)
+
+    //  We must be careful with dtor leaks for proxy types
+    //  (types which manage access to an object, but do not own it)
+    //
+    //  vec::Drain
+    //      Iterator that returns vector elements by-value
+    //      When it is dropped, it drops remaining elements in the vector
+    //      If we 'mem::forget(drainer)', we are left with a vector containing uninitalized values
+    //
+    //  Rc
+    //      If we 'mem::forget(rc)', then we are left with an incorrect reference count (and the memory it holds is leaked)
+    //
+    //  thread::scoped::JoinGuard
+    //      Removed from std, since it relies on dtor to be safe
+
+    //  'mem::ManuallyDrop<T>'
+    //  0-cost wrapper (guaranteed to have the same layout as 'T'), prevents compiler from automatically calling 'T's dtor
 }
 
