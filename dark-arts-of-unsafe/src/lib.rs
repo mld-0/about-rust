@@ -5,4 +5,5 @@ pub mod type_conversions;               //  ch04
 pub mod uninitialized_memory;           //  ch05
 pub mod raii_resource_management;       //  ch06
 pub mod unwinding;                      //  ch07
+pub mod concurrency;                    //  ch08
 
