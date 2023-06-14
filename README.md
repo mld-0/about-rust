@@ -1,9 +1,10 @@
-Repo probably should be called 'learning-rust' (but changing it at this stage feels hard)
+About Rust:
+Repo of resources from studying Rust.
 
 
 Programming Rust:
 Book examples repo: https://github.com/ProgrammingRust/examples
-This repo (which should be called something like 'learning-rust') origionally grew from this one book.
+This repo (previously the whole thing was called 'programming-rust') origionally grew from this one book.
 (chapters currently are top level items -> should be moved into subdirectory 'programming-rust')
 Said chapters, covering 'the basics' probably won't be revisted from other sources (making these chapter items the imperfect go-to for said basics for this repo)
 ... there is no folder for chapter 20?
