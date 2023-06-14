@@ -8,7 +8,7 @@ set -o nounset   # abort on unbound variable
 set -o pipefail  # don't hide errors within pipes
 
 SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
-dir_items="items"
+dir_items="sourcefiles"
 
 log_debug() {
 	echo "$@" > /dev/stderr
@@ -42,8 +42,10 @@ link_items() {
 
 	cd "$SCRIPTPATH"
 	if [[ -d "$dir_items" ]]; then
-		log_debug $func_name, rm -r "$dir_items"
-		rm -r "$dir_items"
+		#log_debug $func_name, rm -r "$dir_items"
+		#rm -r "$dir_items"
+		echo "$func_name, error, already exists, dir_items=($dir_items)"
+		exit 2
 	fi
 	log_debug $func_name, mkdir "$dir_items"
 	mkdir "$dir_items"

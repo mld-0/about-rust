@@ -21,7 +21,7 @@
 //  Ongoing: 2022-10-14T22:49:47AEDT Iterator defines 'type Item' (instead of using a type parameter) (why?) [...] (it is a type which is not intended to be parameterised in the implementing class?) [...] (<is that> what the keyword 'type' means in the context of a trait (can structs have them)?) [...] ~~(we do not use 'Self::Item' in the class implementing the trait?~~ -> actually we can (but book example does not))
 //  Ongoing: 2022-10-14T23:23:24AEDT make something iterable (without implementing 'Iterator')
 //  Ongoing: 2022-10-14T23:58:57AEDT 'T::default()' provides a 0 of any numeric type -> (what is the best way to get a '3' of any numeric type?) [...] (does any trait make '0 as T' available?)
-//  Ongoing: 2022-10-15T00:31:19AEDT is the default Output type of Add/Mul not Self (why do we have to specify 'T: Add<Output=T>' for 'dot()'(?))
+//  Ongoing: 2022-10-15T00:31:19AEDT is the default Output type of Add/Mul not Self (why do we have to specify 'T: Add<Output=T>' for 'dot()'(?)) [...] (actually, RHS defaults to Self, not Output(?))
 //  }}}
 #![allow(unused)]
 #![allow(non_snake_case)]

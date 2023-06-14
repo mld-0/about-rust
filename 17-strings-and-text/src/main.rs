@@ -14,6 +14,7 @@
 
 //  Continue: 2022-11-10T21:57:29AEDT using Cow with str/String
 //  Continue: 2022-11-10T23:15:04AEDT (expand example) Using formatting code in custom code example 'write_log_entry()' / 'Eg_log!()'
+//  Continue: 2022-11-11T23:03:56AEDT conversion between str / String
 
 use std::str::FromStr;
 use std::borrow::Cow;

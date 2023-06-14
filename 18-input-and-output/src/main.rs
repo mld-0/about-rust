@@ -27,6 +27,10 @@
 //  Ongoing: 2022-11-25T19:40:33AEDT recusive 'copy_dir_to()' function untested [...] (also I don't like '&dest.join(entry.file_name())')
 //  }}}
 
+//  Continue: 2022-11-25T20:08:39AEDT networking
+//  Continue: 2022-11-25T20:08:57AEDT other-crates
+//  Continue: 2022-11-25T20:09:02AEDT cleanup
+
 macro_rules! vec_of_strings {
     ($($x:expr),*) => (vec![$($x.to_string()),*]);
 }

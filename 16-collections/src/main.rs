@@ -29,6 +29,8 @@
 //  Ongoing: 2022-11-26T23:26:30AEDT book example for shuffle uses thread_rng().shuffle() (which for us is an error)
 //  }}}
 
+//  Continue: 2022-11-26T23:44:54AEDT ordered vs unordered set/map (use-cases)
+
 macro_rules! vec_of_strings {
     ($($x:expr),*) => (vec![$($x.to_string()),*]);
 }

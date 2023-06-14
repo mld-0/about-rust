@@ -12,7 +12,7 @@
 //  Ongoing: 2022-10-21T02:51:50AEDT (an example of implict dereferencing: 'println!("x=({})", &x)'?)
 //  }}}
 
-//  LINK: https://www.possiblerust.com/guide/what-can-coerce-and-where-in-rust 
+//  LINK: https://www.possiblerust.com/guide/what-can-coerce-and-where-in-rust
 
 //  From/Into provide infallible conversions
 //  (TryFrom/TryInto are the fallible equivalents)

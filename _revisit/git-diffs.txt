@@ -1,0 +1,91 @@
+00-type-coercisions:
+-//  LINK: https://www.possiblerust.com/guide/what-can-coerce-and-where-in-rust
++//  LINK: https://www.possiblerust.com/guide/what-can-coerce-and-where-in-rust
+
+
+02-a-tour-of-rust:
+-cargo new --bin "hello-world" --vcs none
++#!/usr/bin/env sh
++if [[ ! -d "hello-world" ]]; then
++	cargo new --bin "hello-world" --vcs none
++fi
+
+
+09-structs:
++fn example_inherited_mutability()
++{
++    struct A1 { a: i32, b: i32 };
++    let a1 = A1 { a: 5, b: 7, };
++    a1.b = 7;
++}
++
+
+ fn main()
+ {
+@@ -400,5 +407,10 @@ fn main()
+     example_struct_reference_lifetimeParameters();
+     example_deriving_common_struct_traits();
+     example_interior_mutability();
++
++    struct Foo {
++        immutable int x;
++        int y;
++    };
+ }
+
+
+11-traits-and-generics:
+-//  Ongoing: 2022-10-15T00:31:19AEDT is the default Output type of Add/Mul not Self (why do we have to specify 'T: Add<Output=T>' for 'dot()'(?))
++//  Ongoing: 2022-10-15T00:31:19AEDT is the default Output type of Add/Mul not Self (why do we have to specify 'T: Add<Output=T>' for 'dot()'(?)) [...] (actually, RHS defaults to Self, not Output(?))
+
+
+16-collections:
++//  Continue: 2022-11-26T23:44:54AEDT ordered vs unordered set/map (use-cases)
+
+
+17-strings-and-text:
++//  Continue: 2022-11-11T23:03:56AEDT conversion between str / String
+
+
+18-input-and-output:
++//  Continue: 2022-11-25T20:08:39AEDT networking
++//  Continue: 2022-11-25T20:08:57AEDT other-crates
++//  Continue: 2022-11-25T20:09:02AEDT cleanup
+
+
+grab-labels:
++nl=$'\n'
+
++labels=( "Ongoing" "Continue" )
++labels=( "Continue" )
+ re_date="[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}"
+
+ files=( `find . -name "*.rs" | sort` )
+
+ for f in "${files[@]}"; do
+-	matches=`grep "Ongoing: $re_date" $f | sed "s|^\s*//\s*||g"`
++	matches=""
++	for l in "${labels[@]}"; do
++		matches=$matches`grep "$l: $re_date" $f | sed "s|^\s*//\s*||g"`$nl
++	done
++	matches=`echo "$matches" | sort -h | sed "/^$/d"`
+
+
+link-items:
+-dir_items="items"
++dir_items="sourcefiles"
+
+ log_debug() {
+ 	echo "$@" > /dev/stderr
+@@ -42,8 +42,10 @@ link_items() {
+
+ 	cd "$SCRIPTPATH"
+ 	if [[ -d "$dir_items" ]]; then
+-		log_debug $func_name, rm -r "$dir_items"
+-		rm -r "$dir_items"
++		#log_debug $func_name, rm -r "$dir_items"
++		#rm -r "$dir_items"
++		echo "$func_name, error, already exists, dir_items=($dir_items)"
++		exit 2
+
+

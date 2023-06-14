@@ -388,6 +388,13 @@ fn example_interior_mutability()
     println!("example_interior_mutability, DONE");
 }
 
+fn example_inherited_mutability()
+{
+    struct A1 { a: i32, b: i32 };
+    let a1 = A1 { a: 5, b: 7, };
+    a1.b = 7;
+}
+
 
 fn main() 
 {
@@ -400,5 +407,10 @@ fn main()
     example_struct_reference_lifetimeParameters();
     example_deriving_common_struct_traits();
     example_interior_mutability();
+
+    struct Foo {
+        immutable int x;
+        int y;
+    };
 }
 
