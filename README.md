@@ -2,6 +2,10 @@ About Rust:
 Repo of resources from studying Rust.
 
 
+idioms:
+For clarifying Rust concepts.
+
+
 Programming Rust:
 Book examples repo: https://github.com/ProgrammingRust/examples
 This repo (previously the whole thing was called 'programming-rust') origionally grew from this one book.
