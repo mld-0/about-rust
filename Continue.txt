@@ -9,6 +9,10 @@ dark-arts-of-unsafe:
 2023-03-22T20:00:13AEDT (add outstanding Continues)
 2023-03-22T20:00:27AEDT concurrency, extra resources
 
-entirely-too-many-linked-listsO
+entirely-too-many-linked-lists:
 <>
+
+
+linked-list-exercises:
+2023-07-23T20:02:04AEST about-rust; linked-list-exercises; 01-a-bad-stack; implementing drop, tests, explaining why we need to implement 'Drop', other cases where `mem::replace` on `&mut self` is neccessary(?)
 
