@@ -1,0 +1,6 @@
+[book]
+authors = ["mld-0"]
+language = "en"
+multilingual = false
+src = "src"
+title = "linked-list-exercises"
