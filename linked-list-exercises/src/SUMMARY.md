@@ -11,7 +11,7 @@
     - [A Production Unsafe Deque](./entirely-too-many-linked-lists/06-a-production-unsafe-deque.md)
     - [A Bunch of Silly Lists](./entirely-too-many-linked-lists/07-a-bunch-of-silly-lists.md)
 
-- [Leetcode implementation `Option<Box<ListNode>>`](./leetcode/00-intro.md)
+- [Leetcode implementation `Option<Box<ListNode>>`](./leetcode/00-implementation.md)
     - [Traversal](./leetcode/01-traversal.md)
     - [Reversing](./leetcode/02-reversing.md)
 

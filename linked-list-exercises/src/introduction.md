@@ -10,6 +10,6 @@
     - [06 A Production Unsafe Deque](entirely-too-many-linked-lists/06-a-production-unsafe-deque.md)
     - [07 A Bunch of Silly Lists](entirely-too-many-linked-lists/07-a-bunch-of-silly-lists.md)
 
-- [Leetcode LinkedList implementation: `Option<Box<ListNode>>`](leetcode/00-intro.md)
+- [Leetcode LinkedList implementation: `Option<Box<ListNode>>`](leetcode/00-implementation.md)
     - [01 Traversal](leetcode/01-traversal.md)
     - [02 Reversing](leetcode/02-reversing.md)
