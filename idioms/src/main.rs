@@ -29,6 +29,12 @@ fn about_enums()
 }
 
 
+fn automatic_dereferencing()
+{
+    //  [{automatic dereferencing == implicit dereferencing == deref coercions?}]
+}
+
+
 //  Option<T>
 fn Option_T()
 {
@@ -82,7 +88,8 @@ fn Rc_T()
     //  Functions associated with Rc are called as `Rc::get_mut()` instead of `x.get_mut()` to avoid any conflicts with the methods of the inner type T
 
 
-    //  Creation:
+    //  Rc::new() 
+    //  Creation
     let s: Rc<String> = Rc::new("abc".to_string());
 
 
@@ -151,12 +158,134 @@ fn Rc_T()
 
     //  Rc and ownership cycles:
     //  <>
+
+
+    //  Trait implementations:
 }
 
 
 //  RefCell<T>
 fn RefCell_T()
 {
+    use std::cell::RefCell;
+    //  std::cell:RefCell provides 'interior mutability' - the ability to mutate data stored in an immutable variable
+    //  (alternatives include `Cell<T>` [{for copy types?}], and `RwLock<T>` for threadsafe applications)
+
+    //  `RefCell` represents single ownership over the data it holds (unlike `Rc` which allows multiple ownership)
+
+    //  `RefCell<T>` enforces the same borrowing rules as `Box<T>` (any number of immutable borrows, or a single mutable borrow, but not both) - however, it enforces them at runtime instead of at compile-time (and will panic at runtime if we attempt to violate them)
+    //  The Rust borrow checker is inherently conservative, it rejects certain memory-safe borrows. Using `RefCell<T>` allows us to implement such algorithms that would be rejected by the compiler.
+
+    //  [{`RefCell` can be used for operations that are logically immutable, but implementation details requires mutation in the implementation, eg: caching, mock-objects}]
+
+    //  (`Rc<RefCell<T>>` is a common Rust idiom for circumventing the immutability of `Rc`, see `Rc_RefCell_T()`)
+
+
+    //  RefCell::new()
+    //  Creation
+    let rc = RefCell::new(29);
+
+
+    //  borrow(&self) -> Ref<'_, T>
+    //  Immutable borrows the wrapped value
+    //  The borrow lasts until the returned `Ref` exists the current scope
+    //  Panics if a mutable borrow of the wrapped value exists
+    //  (note the returned value is a `Ref` object, not `&T`)
+
+
+    //  borrow_mut(&self) -> RefMut<'_, T>
+    //  Mutably borrows the wrapped value
+    //  The borrow lasts until the returned `RefMut` exists the current scope
+    //  Panics if any borrow of the wrapped value exists
+    //  (note the returned value is a `RefMut` object, not `&T`)
+
+
+    //  try_borrow(&self) -> Result<Ref<'_, T>, BorrowError>
+    //  Non-panicking variant of `borrow()`
+
+
+    //  try_borrow_mut(&self) -> Result<RefMut<'_, T>, BorrowMutError>
+    //  Non-panicking variant of `borrow_mut()`
+
+
+    //  Example: attempting to borrow_mut from a RefCell while another reference exists will not be rejected by the compiler, but will panic at runtime
+    //  (note that we must explicitly drop the immutable reference - unlike the borrow-checking of the compiler, references obtained from a RefCell are not dropped at the first possible opportunity)
+    let rc = RefCell::new(53);
+    let r1_rc = rc.borrow();
+    //let mut mr1_rc = rc.borrow_mut();     //  will panic, immutable reference already exists
+    drop(r1_rc);
+    let mut mr1_rc = rc.borrow_mut();       //  valid, no other reference exists
+    //let mut mr2_rc = rc.borrow_mut();     //  will panic, mutable reference already exists
+    drop(mr1_rc);
+
+
+    //  into_inner(self) -> T
+    //  Consumes the RefCell, returning the owned value
+    let x = 53;
+    let rc = RefCell::new(x);
+    let x = rc.into_inner();
+
+
+    //  replace(&self, t: T) -> T
+    //  Replace the wrapped value with a new one, returning the old value
+    //  (corresponds to `std::mem::replace()`)
+
+
+    //  replace_with(&self, f: F) -> T
+    //  Like `replace`, but `f` is a function to be applied to the old value
+    //  [{owned value must be copy?}]
+
+
+    //  swap(&self, other: &RefCell<T>)
+    //  Swap the contents of two RefCells
+    //  (corresponds to `std::mem::swap`)
+
+
+    //  as_ptr(&self) -> *mut T
+    //  Returns a mutable raw pointer to the underlying value
+    //  [{use of `as_ptr()` raw pointer and UB?}]
+
+
+    //  get_mut(&mut self) -> &mut T
+    //  Returns an actual mutable reference to the underlying data
+    //  Since this method borrows RefCell mutably, the compiler can check whether any other borrows exist, just as it does with `Box<T>` (making runtime checks unnecessary)
+
+
+    //  take(&self) -> T
+    //  Return the wrapped value, consuming the RefCell
+    //  (panics if the wrapped value is currently borrowed)
+
+
+    //  Trait implementation:
+    //  {{{
+    //  The following traits are automatically implemented for `RefCell<T>` if `T` implements them:
+    //      Clone (panics if a mutable borrow exists of the wrapped value)
+    //      Debug
+    //      Default
+    //      From
+    //      Ord (panics if a mutable borrow exists for either wrapped value)
+    //      PartialEq (panics if a mutable borrow exists for either wrapped value)
+    //      PartialOrd (panics if a mutable borrow exists for either wrapped value)
+    //      CoerceUnsized
+    //      Eq
+    //      Send
+    //      !Sync
+
+    //  Auto-trait implementations: 
+    //      !RefUnwindSafe
+    //      Unpin
+    //      UnwindSafe
+    
+    //  Blanket implementations
+    //      Any
+    //      Borrow
+    //      BorrowMut
+    //      From
+    //      Into
+    //      ToOwned
+    //      TryFrom
+    //      TryInto
+    //  }}}
 }
 
 
@@ -188,6 +317,7 @@ fn main()
     about_enums();
     if_let();
     while_let();
+    automatic_dereferencing();
     Option_T();
     Box_T();
     Option_Box_T();
