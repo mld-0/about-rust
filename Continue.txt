@@ -2,6 +2,7 @@ idioms:
 2023-07-22T20:30:53AEST about-rust; idioms; common Rust-specific features one has had problems with
 2023-07-29T20:34:15AEST about-rust; idioms; Rc; ownership cycles, mutating through raw pointers and UB
 2023-07-29T21:40:09AEST about-rust; idioms; RefCell and UB
+2023-07-29T22:07:10AEST about-rust; idioms; not-started topics include: match_blocks, if_let, while_let, about_enums, automatic_dereferencing, Box_T, Option_Box_T, Rc_RefCell_T, Sized, mem_replace, take, refT_vs_T_Ref
 
 programming-rust:
 2023-06-14T21:50:44AEST items in '_revisit' ((are) changes left uncommited (until now) (as a 'revisit me' indicator) (now stashed in 'programming-rust/_revisit') ... (was there also a 'Continue's file for the book?) (or are they uncollected (and useless) at the top of each file?))
