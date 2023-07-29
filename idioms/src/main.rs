@@ -113,10 +113,15 @@ fn Rc_T()
     println!("reference_count(s)=({})", Rc::strong_count(&s));
 
 
-    //  as_ptr() / as_mut_ptr():
+    //  as_ptr() 
     //  obtain a raw pointer to underlying value, without consuming owning pointer
-    //  pointer remains valid so long as the reference count remains above 0
+    //  this pointer remains valid so long as the reference count remains above 0
     let p_s = s.as_ptr();
+
+
+    //  as_mut_ptr()
+    //  [{when it is allowed (`s.as_mut_ptr()` is not?) (neither is 'z', a mutable Rc to an int not used anywhere else?)}]
+    //  <>
 
 
     //  into_raw() / from_raw():
@@ -128,6 +133,7 @@ fn Rc_T()
         let y = Rc::from_raw(p_y);
         //  `Rc::from_raw` is *only* valid when used on a pointer obtained from `Rc::into_raw`
     }
+
 
     //  Rc::downgrade()
     //  Obtain a Weak<T> (non-owning) pointer to the underlying value
@@ -150,6 +156,7 @@ fn Rc_T()
 
 
     //  [{presumedly, using raw pointers to mutate an Rc with multiple owners is UB?}]
+    //  [{In general, mutating otherwise immutable values using a pointer is UB, and so it is with Rc?}]
 
 
     //  Rc::make_mut(&mut Rc<T>) -> &mut T
@@ -157,6 +164,8 @@ fn Rc_T()
 
 
     //  Rc and ownership cycles:
+    //  Because Rc does not require exclusive ownership, it is possible to create cycles leading to memory leaks
+    //  [{tools for detecting cycles - will miri do it? gpt4 suggetss 'valgrind'}]
     //  <>
 
 
