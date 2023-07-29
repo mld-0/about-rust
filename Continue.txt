@@ -1,5 +1,6 @@
 idioms:
 2023-07-22T20:30:53AEST about-rust; idioms; common Rust-specific features one has had problems with
+2023-07-29T20:34:15AEST about-rust; idioms; Rc; ownership cycles, mutating through raw pointers and UB
 
 programming-rust:
 2023-06-14T21:50:44AEST items in '_revisit' ((are) changes left uncommited (until now) (as a 'revisit me' indicator) (now stashed in 'programming-rust/_revisit') ... (was there also a 'Continue's file for the book?) (or are they uncollected (and useless) at the top of each file?))
