@@ -160,7 +160,53 @@ fn Rc_T()
     //  <>
 
 
-    //  Trait implementations:
+    //  [{automatic dereferencing}]
+    //  <>
+
+
+    //  Trait implementation:
+    //  {{{
+    //  `Rc<T>` implements many traits if they are implemented by `T`
+    //  (ones you might have heard of)
+    //      AsRef
+    //      Borrow
+    //      Clone
+    //      Debug
+    //      Display
+    //      Default
+    //      Deref
+    //      Drop
+    //      From (with specific implementations for many types)
+    //      FromIterator
+    //      Hash
+    //      Ord
+    //      PartialOrd
+    //      Eq
+    //      PartialEq
+    //  (and others)
+    //      AsFd
+    //      AsHandle
+    //      AsRawFd
+    //      AsSocket
+    //      Pointer
+    //      RefUnwindSafe
+    //      !Send
+    //      !Sync
+    //      Unpin
+    //      UnwindSafe
+
+    //  Blanket implementations
+    //      Any
+    //      Borrow
+    //      BorrowMut
+    //      !From
+    //      From
+    //      Into
+    //      ToOwned
+    //      ToString
+    //      TryFrom
+    //      TryInto
+    //  }}}
 }
 
 
